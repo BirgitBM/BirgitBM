@@ -1,0 +1,45 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+
+  /* Markenfarben ContentOS */
+  --color-marke-50: #f0fdfa;
+  --color-marke-100: #ccfbf1;
+  --color-marke-200: #99f6e4;
+  --color-marke-300: #5eead4;
+  --color-marke-400: #2dd4bf;
+  --color-marke-500: #14b8a6;
+  --color-marke-600: #0d9488;
+  --color-marke-700: #0f766e;
+  --color-marke-800: #115e59;
+  --color-marke-900: #134e4a;
+
+  --color-sand-50: #faf9f7;
+  --color-sand-100: #f4f2ee;
+  --color-sand-200: #e8e4dd;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background-color: var(--color-sand-50);
+  color: #0f172a;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Dezente Scrollbar, damit die Oberfläche ruhig bleibt */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+
+@media print {
+  .kein-druck {
+    display: none !important;
+  }
+}
