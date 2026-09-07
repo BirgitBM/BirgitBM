@@ -1,0 +1,66 @@
+# Bewertungslogik des Scanners.
+# Alle Werte hier sind ohne Programmierkenntnisse anpassbar.
+# Nach Änderungen die Anwendung neu starten.
+
+# ---------------------------------------------------------------
+# Ab welchem Score gilt ein Projekt als interessant?
+# Nur diese Projekte lösen eine Telegram-Nachricht aus und bekommen
+# automatisch einen Bewerbungsentwurf.
+# ---------------------------------------------------------------
+min_score: 75
+
+# Dein Ziel-Stundensatz in USD. Grundlage für die Budget-/Aufwand-Rechnung.
+# Höher = der Scanner wird wählerischer.
+target_hourly_rate_usd: 60
+
+# ---------------------------------------------------------------
+# Gewichtung der sechs Kriterien. Summe muss 1.0 ergeben.
+# ---------------------------------------------------------------
+weights:
+  technical_fit: 0.30      # Wie gut mit KI / n8n / Make / Zapier / APIs lösbar
+  budget_ratio: 0.20       # Budget im Verhältnis zum geschätzten Aufwand
+  clarity: 0.15            # Wie klar ist die Aufgabe beschrieben
+  risk: 0.15               # Technisches Risiko (invertiert)
+  simplicity: 0.10         # Wenig Spezialprogrammierung nötig (invertiert)
+  reusability: 0.10        # Wiederverwendbarkeit für spätere Aufträge
+
+# ---------------------------------------------------------------
+# Konservative Deckel ("Risiko-Bremse").
+# Ein attraktives Budget kann ein riskantes Projekt NICHT hochziehen:
+# greift ein Deckel, wird der Score hart auf diesen Wert begrenzt.
+# Niedrigere Werte = vorsichtiger.
+# ---------------------------------------------------------------
+caps:
+  risk_high: { threshold: 7, max_score: 55 }        # LLM-Risiko >= 7
+  risk_critical: { threshold: 9, max_score: 40 }    # LLM-Risiko >= 9
+  clarity_low: { threshold: 3, max_score: 50 }      # Beschreibung <= 3 (sehr unklar)
+  difficulty_high: { threshold: 8, max_score: 50 }  # Schwierigkeit >= 8
+  many_red_flags: { threshold: 3, max_score: 60 }   # 3 oder mehr Warnsignale
+  employer_unverified: { max_score: 70 }            # Auftraggeber ohne Zahlungsnachweis
+  no_budget: { max_score: 65 }                      # Kein Budget angegeben
+
+# ---------------------------------------------------------------
+# Vorfilter: greift VOR dem LLM-Aufruf und spart damit Kosten.
+# ---------------------------------------------------------------
+prefilter:
+  min_budget_usd: 100          # Projekte unter diesem Budget gar nicht erst bewerten
+  min_description_chars: 120   # Zu kurze Beschreibungen sind nicht bewertbar
+  max_existing_bids: 60        # Bei mehr Geboten ist der Zug meist abgefahren
+  skip_if_no_budget: false     # true = Projekte ohne Budgetangabe überspringen
+
+# ---------------------------------------------------------------
+# Grobe Umrechnungskurse in USD. Nur Näherungswerte für die
+# Budget-Rechnung, keine Buchhaltung. Bei Bedarf anpassen.
+# ---------------------------------------------------------------
+currency_rates_usd:
+  USD: 1.0
+  EUR: 1.09
+  GBP: 1.27
+  CAD: 0.74
+  AUD: 0.66
+  NZD: 0.61
+  CHF: 1.13
+  SGD: 0.74
+  INR: 0.012
+  ZAR: 0.055
+  HKD: 0.128

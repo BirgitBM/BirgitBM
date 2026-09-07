@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Freelancer Scanner{% endblock %}</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="wrap">
+    <header class="top">
+      <h1><a href="/" style="text-decoration:none;color:inherit">Freelancer Scanner</a></h1>
+      <div>
+        <span class="pill">LLM: {{ info.llm_provider }}</span>
+        <span class="pill">Quelle: {{ info.source }}</span>
+        <span class="pill">Mindestscore: {{ info.min_score|round(0)|int }}</span>
+      </div>
+    </header>
+
+    {% if info.demo_mode %}
+      <div class="banner">
+        <strong>DEMO-MODUS aktiv.</strong>
+        Es werden Beispielprojekte verwendet. Es findet kein Zugriff auf die
+        Freelancer-API, kein KI-Aufruf und kein Telegram-Versand statt.
+        Zum Umschalten <code>DEMO_MODE=false</code> in der Datei <code>.env</code> setzen.
+      </div>
+    {% endif %}
+
+    {% if message %}<div class="flash">{{ message }}</div>{% endif %}
+
+    {% block content %}{% endblock %}
+  </div>
+</body>
+</html>

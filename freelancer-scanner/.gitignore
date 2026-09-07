@@ -1,0 +1,25 @@
+# Zugangsdaten – niemals ins Repository
+.env
+.env.local
+*.key
+
+# Datenbank
+data/*
+!data/.gitkeep
+*.db
+*.sqlite
+*.sqlite3
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+*.egg-info/
+
+# Betriebssystem und Editor
+.DS_Store
+.idea/
+.vscode/

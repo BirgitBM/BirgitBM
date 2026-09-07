@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block content %}
+
+<p class="subtitle">
+  Automatisch gefundene und bewertete Automatisierungsprojekte.
+  Es wird nichts automatisch beworben oder angenommen.
+</p>
+
+<div class="cards">
+  <div class="card">
+    <div class="label">Heute gefunden</div>
+    <div class="value">{{ stats.found_today }}</div>
+  </div>
+  <div class="card">
+    <div class="label">Über Mindestscore</div>
+    <div class="value">{{ stats.above_threshold }}</div>
+  </div>
+  <div class="card">
+    <div class="label">Durchschnitt heute</div>
+    <div class="value">{{ stats.average_score if stats.average_score is not none else '–' }}</div>
+  </div>
+  <div class="card">
+    <div class="label">Beste Bewertung heute</div>
+    <div class="value">{{ stats.best_score if stats.best_score is not none else '–' }}</div>
+  </div>
+</div>
+
+<div class="toolbar">
+  <form method="post" action="/scan">
+    <button class="btn primary" type="submit">Jetzt scannen</button>
+  </form>
+  <a class="btn {{ 'active' if not current_filter }}" href="/">Alle offenen</a>
+  <a class="btn {{ 'active' if current_filter == 'top' }}" href="/?filter=top">Nur über Mindestscore</a>
+  {% for value, label in status_options %}
+    <a class="btn {{ 'active' if current_filter == value }}" href="/?filter={{ value }}">{{ label }}</a>
+  {% endfor %}
+</div>
+
+<div class="table-scroll">
+  {% if projects %}
+  <table>
+    <thead>
+      <tr>
+        <th>Score</th>
+        <th>Titel</th>
+        <th>Budget</th>
+        <th>Aufwand</th>
+        <th>Gebot</th>
+        <th>Risiko</th>
+        <th>Tools</th>
+        <th>Datum</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for project in projects %}
+      <tr>
+        <td class="score {{ (project.category or 'c')|lower }}">
+          {{ project.overall_score|round(0)|int if project.overall_score is not none else '–' }}
+        </td>
+        <td class="title">
+          <a href="/projects/{{ project.id }}">{{ project.title }}</a>
+          {% if project.evaluation_error %}<br><span class="pill hoch">Bewertung fehlgeschlagen</span>{% endif %}
+        </td>
+        <td>{{ project.budget_display }}</td>
+        <td>{{ project.hours_display }}</td>
+        <td>{{ (project.recommended_bid_usd|round(0)|int ~ ' USD') if project.recommended_bid_usd else '–' }}</td>
+        <td>
+          {% if project.risk_level %}
+            <span class="pill {{ project.risk_level }}">{{ project.risk_level }}</span>
+          {% else %}–{% endif %}
+        </td>
+        <td>{{ project.tools_display }}</td>
+        <td>{{ project.fetched_at.strftime('%d.%m. %H:%M') if project.fetched_at else '–' }}</td>
+        <td><span class="pill">{{ project.status_label }}</span></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty">
+    Noch keine Projekte in dieser Ansicht.<br>
+    Über <strong>Jetzt scannen</strong> einen Durchlauf starten.
+  </div>
+  {% endif %}
+</div>
+
+{% endblock %}

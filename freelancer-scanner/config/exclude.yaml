@@ -1,0 +1,32 @@
+# Technologien und Signalwörter, die ein Projekt sofort aussortieren.
+# Die Prüfung ist nicht case-sensitiv und greift auf Titel, Beschreibung und Skills.
+# Ein Treffer bedeutet: kein LLM-Aufruf, keine Kosten, Status REJECTED.
+
+exclude_technologies:
+  - Salesforce
+  - SAP
+  - Kubernetes
+  - Blockchain
+  - Solidity
+  - Web3
+  - NFT
+  - Unity
+  - Unreal Engine
+  - Flutter
+  - Swift
+  - Kotlin
+  - Android Studio
+  - Magento
+  - Drupal
+  - Odoo
+  - NetSuite
+  - Dynamics 365
+
+# Formulierungen, die auf schlechte Auftraggeber oder unbezahlte Arbeit hindeuten.
+exclude_phrases:
+  - unpaid
+  - no budget
+  - equity only
+  - revenue share only
+  - free trial task
+  - test task unpaid

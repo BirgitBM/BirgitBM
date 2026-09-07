@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+{% block title %}{{ project.title }} – Freelancer Scanner{% endblock %}
+{% block content %}
+
+<p class="subtitle"><a href="/">← Zurück zur Übersicht</a></p>
+
+<h2 style="margin:0 0 6px;font-size:19px">{{ project.title }}</h2>
+<p class="subtitle">
+  {% if project.url %}<a href="{{ project.url }}" target="_blank" rel="noopener">Projekt auf Freelancer öffnen</a> · {% endif %}
+  Gefunden am {{ project.fetched_at.strftime('%d.%m.%Y um %H:%M') if project.fetched_at else '–' }}
+  {% if project.matched_keyword %} · Suchbegriff „{{ project.matched_keyword }}"{% endif %}
+</p>
+
+{% if project.evaluation_error %}
+  <div class="warn"><strong>Bewertung fehlgeschlagen:</strong> {{ project.evaluation_error }}</div>
+{% endif %}
+{% if project.rejected_reason %}
+  <div class="warn"><strong>Vorgefiltert:</strong> {{ project.rejected_reason }}</div>
+{% endif %}
+
+<div class="panel">
+  <h2>Status ändern</h2>
+  <div class="actions">
+    {% for value, label in status_options %}
+    <form method="post" action="/projects/{{ project.id }}/status">
+      <input type="hidden" name="status" value="{{ value }}">
+      <button class="btn {{ 'active' if project.status.value == value }}" type="submit">{{ label }}</button>
+    </form>
+    {% endfor %}
+  </div>
+  <p style="margin:12px 0 0;color:var(--muted);font-size:13px">
+    Der Status wird nur hier gespeichert. Es wird nichts an Freelancer übertragen.
+  </p>
+</div>
+
+<div class="detail-grid">
+  <div>
+    {% if evaluation %}
+    <div class="panel">
+      <h2>KI-Zusammenfassung</h2>
+      <p>{{ evaluation.short_summary }}</p>
+    </div>
+
+    <div class="panel">
+      <h2>Technischer Umsetzungsplan</h2>
+      <p>{{ evaluation.implementation_idea }}</p>
+    </div>
+
+    <div class="panel">
+      <h2>Begründung der Bewertung</h2>
+      <p>{{ evaluation.reason_for_score }}</p>
+      {% if breakdown and breakdown.applied_caps %}
+        <div class="warn" style="margin-top:12px">
+          <strong>Konservative Deckelung greift:</strong>
+          <ul style="margin:6px 0 0">
+            {% for cap in breakdown.applied_caps %}<li>{{ cap }}</li>{% endfor %}
+          </ul>
+          Ungedeckelt wären es {{ breakdown.raw_score|round(0)|int }} Punkte gewesen.
+        </div>
+      {% endif %}
+      {% if breakdown and breakdown.notes %}
+        <ul style="margin-top:10px;color:var(--muted);font-size:13.5px">
+          {% for note in breakdown.notes %}<li>{{ note }}</li>{% endfor %}
+        </ul>
+      {% endif %}
+    </div>
+
+    {% if evaluation.red_flags %}
+    <div class="panel">
+      <h2>Risiken und Warnsignale</h2>
+      <ul>{% for flag in evaluation.red_flags %}<li>{{ flag }}</li>{% endfor %}</ul>
+    </div>
+    {% endif %}
+    {% endif %}
+
+    <div class="panel">
+      <h2>Bewerbungsentwurf</h2>
+      {% if project.proposal_draft %}
+        <pre class="draft">{{ project.proposal_draft }}</pre>
+        <p style="margin:12px 0 0;color:var(--muted);font-size:13px">
+          Entwurf zum Kopieren. Er wird niemals automatisch versendet.
+        </p>
+      {% else %}
+        <p style="color:var(--muted)">Noch kein Entwurf vorhanden.</p>
+        <form method="post" action="/projects/{{ project.id }}/proposal">
+          <button class="btn primary" type="submit">Entwurf jetzt erzeugen</button>
+        </form>
+      {% endif %}
+    </div>
+
+    <div class="panel">
+      <h2>Originalbeschreibung</h2>
+      <pre class="original">{{ project.description }}</pre>
+    </div>
+  </div>
+
+  <div>
+    <div class="panel">
+      <h2>Kennzahlen</h2>
+      <dl class="kv">
+        <dt>Score</dt>
+        <dd class="score {{ (project.category or 'c')|lower }}">
+          {{ project.overall_score|round(0)|int if project.overall_score is not none else '–' }} / 100
+        </dd>
+        <dt>Kategorie</dt><dd>{{ project.category or '–' }}</dd>
+        <dt>Budget</dt><dd>{{ project.budget_display }}</dd>
+        <dt>Aufwand</dt><dd>{{ project.hours_display }}</dd>
+        <dt>Empf. Gebot</dt>
+        <dd>{{ (project.recommended_bid_usd|round(0)|int ~ ' USD') if project.recommended_bid_usd else '–' }}</dd>
+        {% if breakdown and breakdown.effective_hourly_rate_usd %}
+        <dt>Effektiv</dt><dd>{{ breakdown.effective_hourly_rate_usd|round(0)|int }} USD/h</dd>
+        {% endif %}
+        <dt>Risiko</dt>
+        <dd>{% if project.risk_level %}<span class="pill {{ project.risk_level }}">{{ project.risk_level }}</span>{% else %}–{% endif %}</dd>
+        <dt>Gebote</dt><dd>{{ project.bid_count if project.bid_count is not none else '–' }}</dd>
+        <dt>Auftraggeber</dt>
+        <dd>
+          {% if project.employer_verified is none %}unbekannt
+          {% elif project.employer_verified %}verifiziert
+          {% else %}nicht verifiziert{% endif %}
+          {% if project.employer_country %}({{ project.employer_country }}){% endif %}
+        </dd>
+        <dt>Status</dt><dd>{{ project.status_label }}</dd>
+        {% if project.llm_model %}<dt>Modell</dt><dd style="font-size:12.5px">{{ project.llm_model }}</dd>{% endif %}
+      </dl>
+    </div>
+
+    {% if breakdown and breakdown.breakdown %}
+    <div class="panel">
+      <h2>Wie der Score entsteht</h2>
+      {% for key, label, weight in breakdown_labels %}
+      <div class="bar-row">
+        <div class="bar-label">
+          <span>{{ label }}</span>
+          <span>{{ (breakdown.breakdown[key] * 100)|round(0)|int }} % · Gewicht {{ (weight * 100)|round(0)|int }} %</span>
+        </div>
+        <div class="bar"><span style="width: {{ (breakdown.breakdown[key] * 100)|round(0)|int }}%"></span></div>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if evaluation %}
+    <div class="panel">
+      <h2>Benötigte APIs und Tools</h2>
+      <dl class="kv">
+        <dt>Tools</dt><dd>{{ evaluation.required_tools|join(', ') or '–' }}</dd>
+        <dt>APIs</dt><dd>{{ evaluation.required_apis|join(', ') or '–' }}</dd>
+        <dt>Toolkosten</dt><dd>{{ evaluation.estimated_tool_cost_usd|round(0)|int }} USD</dd>
+      </dl>
+    </div>
+    {% endif %}
+
+    {% if project.skills %}
+    <div class="panel">
+      <h2>Skills laut Auftraggeber</h2>
+      <p>{% for skill in project.skills %}<span class="pill">{{ skill }}</span> {% endfor %}</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}
