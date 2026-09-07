@@ -154,6 +154,13 @@ kommt mit dem Supabase-Schritt.
 - **Änderungen bleiben nur im Browser** (lokaler Speicher). Ein anderer Rechner
   oder Browser sieht sie nicht. Das ändert sich mit der Supabase-Anbindung.
 - **Kein automatisches Posten.** Bewusst nicht Teil dieser Version.
+- **Kein Supabase, keine Datenbank, keine Migrationen.** Das Projekt hat keine
+  externen Dienste. Nach einem Update ist also nie eine Migration auszuführen –
+  es genügt `npm install` und `npm run dev`.
+- **Nach einem Update werden die Beispieldaten im Browser neu geladen**, sobald
+  sich das Datenmodell geändert hat. Eigene Testeingaben aus der vorherigen
+  Fassung gehen dabei verloren. Das ist gewollt: halb passende Altdaten
+  verursachen sonst Fehler, die schwer zu finden sind.
 
 ## Nächste Ausbaustufe
 

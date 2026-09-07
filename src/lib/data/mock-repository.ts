@@ -15,7 +15,18 @@ import type {
 } from "../types";
 import type { ContentRepository, DatenBestand } from "./repository";
 
-const SPEICHER_SCHLUESSEL = "contentos.v1";
+const SPEICHER_SCHLUESSEL = "contentos";
+
+/**
+ * Fassung des gespeicherten Datenbestands.
+ *
+ * Wird das Datenmodell erweitert, erhöht sich diese Zahl. Beim Laden wird dann
+ * erkannt, dass die Daten im Browser aus einer älteren Fassung stammen, und die
+ * Beispieldaten werden neu geladen. Ohne diese Prüfung fehlten neuen Feldern
+ * still ihre Werte – der häufigste Grund für schwer auffindbare Fehler nach
+ * einem Update.
+ */
+const SPEICHER_FASSUNG = 3;
 
 /**
  * Version-1-Implementierung: Mock-Daten als Startbestand, Änderungen bleiben
@@ -47,7 +58,16 @@ export class MockRepository implements ContentRepository {
     try {
       const roh = window.localStorage.getItem(SPEICHER_SCHLUESSEL);
       if (roh) {
-        const gespeichert = JSON.parse(roh) as Partial<DatenBestand>;
+        const gespeichert = JSON.parse(roh) as Partial<DatenBestand> & {
+          fassung?: number;
+        };
+        if (gespeichert.fassung !== SPEICHER_FASSUNG) {
+          // Ältere Fassung im Browser: bewusst verwerfen und mit den
+          // aktuellen Beispieldaten neu starten.
+          this.bestand = this.startbestand();
+          this.sichern();
+          return this.bestand;
+        }
         const start = this.startbestand();
         this.bestand = {
           content: gespeichert.content ?? start.content,
@@ -73,7 +93,7 @@ export class MockRepository implements ContentRepository {
     try {
       window.localStorage.setItem(
         SPEICHER_SCHLUESSEL,
-        JSON.stringify(this.bestand),
+        JSON.stringify({ ...this.bestand, fassung: SPEICHER_FASSUNG }),
       );
     } catch {
       // Speicher voll oder blockiert – die App funktioniert weiter.
