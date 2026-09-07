@@ -3,7 +3,10 @@
 
 <p class="subtitle">
   Automatisch gefundene und bewertete Automatisierungsprojekte.
-  Es wird nichts automatisch beworben oder angenommen.
+  Es wird nichts automatisch beworben oder angenommen.<br>
+  <strong>Score</strong> = reine Qualität (ändert sich nie).
+  <strong>Chance</strong> = Score plus Bonus für frische Projekte mit wenigen
+  Geboten – danach wird sortiert und gemeldet.
 </p>
 
 <div class="cards">
@@ -14,6 +17,10 @@
   <div class="card">
     <div class="label">Über Mindestscore</div>
     <div class="value">{{ stats.above_threshold }}</div>
+  </div>
+  <div class="card">
+    <div class="label">ARBITRAGE heute</div>
+    <div class="value">{{ stats.arbitrage_today }}</div>
   </div>
   <div class="card">
     <div class="label">Durchschnitt heute</div>
@@ -31,6 +38,7 @@
   </form>
   <a class="btn {{ 'active' if not current_filter }}" href="/">Alle offenen</a>
   <a class="btn {{ 'active' if current_filter == 'top' }}" href="/?filter=top">Nur über Mindestscore</a>
+  <a class="btn {{ 'active' if current_filter == 'arbitrage' }}" href="/?filter=arbitrage">💎 ARBITRAGE</a>
   {% for value, label in status_options %}
     <a class="btn {{ 'active' if current_filter == value }}" href="/?filter={{ value }}">{{ label }}</a>
   {% endfor %}
@@ -42,13 +50,16 @@
     <thead>
       <tr>
         <th>Score</th>
+        <th>Chance</th>
         <th>Titel</th>
         <th>Budget</th>
         <th>Aufwand</th>
         <th>Gebot</th>
+        <th>USD/h</th>
+        <th>Hebel</th>
         <th>Risiko</th>
         <th>Tools</th>
-        <th>Datum</th>
+        <th>Alter</th>
         <th>Status</th>
       </tr>
     </thead>
@@ -58,20 +69,27 @@
         <td class="score {{ (project.category or 'c')|lower }}">
           {{ project.overall_score|round(0)|int if project.overall_score is not none else '–' }}
         </td>
+        <td class="chance">
+          {{ project.opportunity_score|round(0)|int if project.opportunity_score is not none else '–' }}
+          {%- if project.freshness_bonus %}<span class="bonus">+{{ project.freshness_bonus|round(0)|int }}</span>{% endif %}
+        </td>
         <td class="title">
+          {% if project.is_arbitrage %}<span class="pill arb">💎 ARBITRAGE</span><br>{% endif %}
           <a href="/projects/{{ project.id }}">{{ project.title }}</a>
           {% if project.evaluation_error %}<br><span class="pill hoch">Bewertung fehlgeschlagen</span>{% endif %}
         </td>
         <td>{{ project.budget_display }}</td>
         <td>{{ project.hours_display }}</td>
         <td>{{ (project.recommended_bid_usd|round(0)|int ~ ' USD') if project.recommended_bid_usd else '–' }}</td>
+        <td class="rate">{{ project.rate_display }}</td>
+        <td>{{ project.automation_leverage|round(0)|int if project.automation_leverage is not none else '–' }}</td>
         <td>
           {% if project.risk_level %}
             <span class="pill {{ project.risk_level }}">{{ project.risk_level }}</span>
           {% else %}–{% endif %}
         </td>
         <td>{{ project.tools_display }}</td>
-        <td>{{ project.fetched_at.strftime('%d.%m. %H:%M') if project.fetched_at else '–' }}</td>
+        <td>{{ project.age_display }}</td>
         <td><span class="pill">{{ project.status_label }}</span></td>
       </tr>
       {% endfor %}

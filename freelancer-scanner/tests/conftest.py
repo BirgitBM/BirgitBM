@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import sys
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
@@ -53,6 +54,7 @@ def make_project():
             skills=["n8n", "Automation"],
             bid_count=5,
             employer_verified=True,
+            posted_at=datetime.now(timezone.utc) - timedelta(hours=6),
         )
         defaults.update(overrides)
         return Project(**defaults)
@@ -65,6 +67,7 @@ def make_evaluation():
     def _make(**overrides) -> LLMEvaluation:
         defaults = dict(
             technical_fit=9,
+            automation_leverage=9,
             difficulty=3,
             risk=2,
             clarity=8,

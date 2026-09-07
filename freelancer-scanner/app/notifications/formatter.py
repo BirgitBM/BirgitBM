@@ -32,8 +32,14 @@ def format_project_message(
     if project.project_type == "hourly" and score.recommended_bid_usd is not None:
         bid = f"{score.recommended_bid_usd:,.0f} USD/h"
 
+    kopf = (
+        f"💎 <b>ARBITRAGE – {score.overall_score:.0f}/100</b>"
+        if score.is_arbitrage
+        else f"🔥 <b>Neuer Freelancer Job – {score.overall_score:.0f}/100</b>"
+    )
+
     lines = [
-        f"🔥 <b>Neuer Freelancer Job – {score.overall_score:.0f}/100</b>",
+        kopf,
         "",
         "<b>Titel:</b>",
         escape(project.title),
@@ -56,6 +62,22 @@ def format_project_message(
         "<b>Warum interessant:</b>",
         escape(summary),
     ]
+
+    if score.effective_hourly_rate_usd is not None:
+        lines += [
+            "",
+            "<b>Dein Stundensatz (bei oberer Schätzung):</b>",
+            f"{score.effective_hourly_rate_usd:,.0f} USD/h",
+        ]
+
+    if score.age_minutes is not None:
+        alter = (
+            f"{score.age_minutes:.0f} Minuten"
+            if score.age_minutes < 90
+            else f"{score.age_minutes / 60:.0f} Stunden"
+        )
+        zusatz = f" (+{score.freshness_bonus:.0f} Frischebonus)" if score.freshness_bonus else ""
+        lines += ["", f"<b>Veröffentlicht vor:</b> {alter}{zusatz}"]
 
     if score.applied_caps:
         lines += ["", "<b>Achtung:</b>", escape("; ".join(score.applied_caps))]

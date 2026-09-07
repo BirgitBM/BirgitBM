@@ -53,6 +53,7 @@ class ProjectRepository:
         *,
         status: ProjectStatus | None = None,
         min_score: float | None = None,
+        arbitrage_only: bool = False,
         include_rejected: bool = False,
         limit: int = 200,
     ) -> list[Project]:
@@ -62,37 +63,48 @@ class ProjectRepository:
         elif not include_rejected:
             stmt = stmt.where(Project.status != ProjectStatus.REJECTED)
         if min_score is not None:
-            stmt = stmt.where(Project.overall_score >= min_score)
+            # Gefiltert wird nach der Chance, nicht nach der reinen Qualitaet --
+            # ein frischer Job soll hier auftauchen.
+            stmt = stmt.where(Project.opportunity_score >= min_score)
+        if arbitrage_only:
+            stmt = stmt.where(Project.is_arbitrage.is_(True))
+        # ARBITRAGE zuerst, dann nach Chance, dann nach Fundzeit.
         stmt = stmt.order_by(
-            Project.overall_score.desc().nullslast(), Project.fetched_at.desc()
+            Project.is_arbitrage.desc(),
+            Project.opportunity_score.desc().nullslast(),
+            Project.fetched_at.desc(),
         ).limit(limit)
         return list(self.session.scalars(stmt))
 
     def stats_since(self, since: datetime, min_score: float) -> dict[str, Any]:
         """Kennzahlen fuer die Kacheln oben im Dashboard."""
-        scored = select(Project).where(
-            Project.fetched_at >= since, Project.overall_score.is_not(None)
-        )
-        scores = [
-            value
-            for value in self.session.scalars(
-                select(Project.overall_score).where(
-                    Project.fetched_at >= since, Project.overall_score.is_not(None)
-                )
+        rows = list(
+            self.session.execute(
+                select(
+                    Project.overall_score,
+                    Project.opportunity_score,
+                    Project.is_arbitrage,
+                    Project.effective_hourly_rate_usd,
+                ).where(Project.fetched_at >= since, Project.overall_score.is_not(None))
             )
-        ]
+        )
+        scores = [row[0] for row in rows]
+        chances = [row[1] for row in rows if row[1] is not None]
+        rates = [row[3] for row in rows if row[3] is not None]
+
         found_total = (
             self.session.scalar(
                 select(func.count()).select_from(Project).where(Project.fetched_at >= since)
             )
             or 0
         )
-        above = [value for value in scores if value >= min_score]
         return {
             "found_today": found_total,
-            "above_threshold": len(above),
+            "above_threshold": sum(1 for value in chances if value >= min_score),
+            "arbitrage_today": sum(1 for row in rows if row[2]),
             "average_score": round(sum(scores) / len(scores), 1) if scores else None,
             "best_score": round(max(scores), 1) if scores else None,
+            "median_rate": round(sorted(rates)[len(rates) // 2], 0) if rates else None,
             "evaluated_today": len(scores),
         }
 

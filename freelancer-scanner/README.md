@@ -216,12 +216,12 @@ ihn niemals in eine andere Datei und schicke ihn niemandem.
 3. Er fragt nach einem Namen (frei wählbar, z. B. „Mein Job Scanner")
 4. Dann nach einem Benutzernamen. Der muss auf `bot` enden, z. B.
    `birgit_job_scanner_bot`
-5. Du bekommst einen Token, der so aussieht:
-   `7891234567:AAF3xY9kLmN0pQrStUvWxYz1234567890`
+5. Du bekommst einen Token. Er besteht aus einer Zahlenfolge, einem
+   Doppelpunkt und einer langen Buchstaben-Zahlen-Kombination.
 6. Diesen Token in die `.env` eintragen:
 
 ```
-TELEGRAM_BOT_TOKEN=7891234567:AAF3xY9kLmN0pQrStUvWxYz1234567890
+TELEGRAM_BOT_TOKEN=<hier deinen Token vom BotFather einsetzen>
 ```
 
 **Schritt 2 – Deine Chat-ID herausfinden**
@@ -316,7 +316,7 @@ source .venv/bin/activate
 python -m pytest tests/ -v
 ```
 
-Erwartet: **64 Tests, alle grün**. Die Tests laufen immer im Demo-Modus und
+Erwartet: **91 Tests, alle grün**. Die Tests laufen immer im Demo-Modus und
 kosten kein Geld – sie greifen auf keine externe Schnittstelle zu.
 
 Geprüft wird unter anderem:
@@ -324,6 +324,9 @@ Geprüft wird unter anderem:
 - rechnet die Bewertung korrekt und bleibt sie konservativ
 - greift der Vorfilter bei ausgeschlossenen Technologien
 - werden ungültige KI-Antworten abgefangen und wiederholt
+- fließt der Automatisierungshebel mit dem richtigen Gewicht ein
+- verändert der Frische-Bonus die Qualitätsbewertung nicht
+- greift die ARBITRAGE-Kennzeichnung nur bei allen fünf Bedingungen
 - wird kein Projekt doppelt gespeichert
 - laufen die fünf Beispielprojekte vollständig durch
 - gibt es wirklich keinen Endpunkt, der sich automatisch bewirbt
@@ -373,11 +376,74 @@ bedeutet: kein KI-Aufruf, keine Kosten.
 
 | Wert | Wirkung |
 | --- | --- |
-| `min_score: 75` | Ab wann gemeldet wird. Höher = weniger, aber bessere Meldungen. |
+| `min_score: 75` | Ab wann **gemeldet** wird (geprüft am Chance-Wert). |
+| `apply_score: 82` | Ab wann **automatisch ein Entwurf** entsteht (am Score). |
 | `target_hourly_rate_usd: 60` | Dein Ziel-Stundensatz. Höher = wählerischer. |
-| `weights` | Die sechs Gewichte. Müssen zusammen 1.0 ergeben. |
+| `weights` | Die sieben Gewichte. Müssen zusammen 1.0 ergeben. |
 | `caps` | Die Risiko-Bremse. Niedrigere Werte = vorsichtiger. |
+| `freshness` | Bonus für frische Projekte mit wenigen Geboten. |
+| `arbitrage` | Wann ein Projekt als besonders lohnend markiert wird. |
 | `prefilter` | Was gar nicht erst bewertet wird. |
+
+### Zwei Zahlen, zwei Zwecke
+
+| | Bedeutung | Wofür |
+| --- | --- | --- |
+| **Score** | Reine Qualität des Auftrags. Ändert sich nie wieder. | Entwurf, ARBITRAGE, spätere Auswertungen |
+| **Chance** | Score plus Bonus für frische Projekte mit wenigen Geboten. | Reihenfolge im Dashboard, Telegram-Meldung |
+
+Der Frische-Bonus steckt bewusst **nicht** im Score. Sonst würde derselbe
+Auftrag heute anders bewertet als morgen – und du könntest später nicht mehr
+auswerten, welche Auftragsarten sich wirklich rechnen.
+
+### Die sieben Kriterien
+
+| Kriterium | Gewicht | Was es misst |
+| --- | --- | --- |
+| Technische Eignung | 22 % | Passt der Auftrag zu n8n / Make / Zapier / APIs? |
+| **Automatisierungshebel** | 18 % | Wie viel Handarbeit nehmen dir KI und Low-Code wirklich ab? |
+| Budget / Aufwand | 18 % | Was gibt das Budget pro Stunde her? |
+| Geringes Risiko | 15 % | Wie wahrscheinlich sind böse Überraschungen? |
+| Klarheit | 13 % | Wie präzise ist die Aufgabe beschrieben? |
+| Wiederverwendbarkeit | 9 % | Kannst du das später wieder verkaufen? |
+| Wenig Sonderprogrammierung | 5 % | Wie viel Spezialcode ist nötig? |
+
+**Technische Eignung und Automatisierungshebel sind nicht dasselbe.** Ein
+Auftrag kann perfekt zu n8n passen und trotzdem überwiegend Handarbeit sein –
+etwa wenn 400 Produktfelder einzeln zugeordnet werden müssen. Genau das misst
+der Hebel: was nach getaner Werkzeugarbeit an Handarbeit übrig bleibt.
+
+### ARBITRAGE
+
+Die Kennzeichnung für die Aufträge, bei denen sich dein Geschäftsmodell wirklich
+rechnet. **Alle fünf** Bedingungen müssen erfüllt sein:
+
+| Bedingung | Standardwert |
+| --- | --- |
+| Score | ≥ 80 |
+| Automatisierungshebel | ≥ 8 |
+| Risiko | ≤ 4 |
+| Dein Stundensatz | ≥ 60 USD |
+| Ausgeschlossene Technologie | keine |
+
+ARBITRAGE-Projekte stehen im Dashboard ganz oben und bekommen immer einen
+Bewerbungsentwurf – auch wenn ihr Score unter `apply_score` liegt.
+
+Auf der Detailseite steht bei jedem Projekt, **welche** Bedingung gefehlt hat.
+So siehst du, ob deine Schwellen zu streng eingestellt sind.
+
+### Die beiden Stundensätze
+
+| Feld | Bedeutung |
+| --- | --- |
+| `effective_hourly_rate_usd` | Was **du** verdienst, wenn die obere Aufwandsschätzung eintritt. |
+| `budget_hourly_rate_usd` | Was das **Kundenbudget** pro Stunde hergeben würde. |
+
+Der erste Wert ist bei `target_hourly_rate_usd` gedeckelt, weil das empfohlene
+Gebot nie über deinen Zielsatz hinausgeht – hohe Gebote gewinnt man auf
+Freelancer.com selten. Für die Frage „welche Aufträge waren am profitabelsten"
+schaust du deshalb auf **beide** Werte: der zweite zeigt, wie viel Luft im
+Budget gewesen wäre.
 
 ### Wie die Risiko-Bremse funktioniert
 
@@ -414,8 +480,9 @@ Zwei Dinge halten die Kosten niedrig:
 - Der **Vorfilter** sortiert ausgeschlossene Technologien, zu kleine Budgets und
   unbrauchbare Beschreibungen aus, **bevor** die KI überhaupt gefragt wird.
   Erfahrungsgemäß fallen so 60–70 % der Projekte kostenlos weg.
-- Der **Bewerbungsentwurf** wird nur für Projekte über dem Mindestscore erzeugt.
-  Für alle anderen kannst du ihn bei Bedarf per Button nachträglich erstellen.
+- Der **Bewerbungsentwurf** wird nur ab `apply_score` (Standard 82) oder bei
+  ARBITRAGE erzeugt – also deutlich seltener als gemeldet wird. Für alle anderen
+  kannst du ihn bei Bedarf per Button nachträglich erstellen.
 
 Kosten pro tausend bewerteter Projekte, grob gerechnet (die Preise gelten je
 eine Million Token):
@@ -451,7 +518,9 @@ ein Ausgabenlimit, bevor der Scanner dauerhaft im Hintergrund läuft.
 | `Address already in use` | Port 8000 belegt | `uvicorn app.main:app --port 8001` |
 | Telegram meldet nichts | Bot nie angeschrieben | Bot in Telegram öffnen und „Start" drücken |
 | Keine Projekte gefunden | Alles schon bekannt oder nichts Neues da | Normal. Log prüfen: wie viele wurden vorgefiltert? |
-| `Die Gewichte ergeben ... statt 1.0` | Tippfehler in `scoring.yaml` | Die sechs Werte unter `weights` müssen zusammen 1.0 ergeben |
+| `Die Gewichte ergeben ... statt 1.0` | Tippfehler in `scoring.yaml` | Die sieben Werte unter `weights` müssen zusammen 1.0 ergeben |
+| `apply_score darf nicht unter min_score liegen` | Schwellen vertauscht | In `scoring.yaml`: `apply_score` muss ≥ `min_score` sein |
+| Nie ein ARBITRAGE-Projekt | Schwellen zu streng | Detailseite zeigt „Warum kein ARBITRAGE". Passenden Wert in `scoring.yaml` senken |
 
 Bei allen anderen Problemen hilft ein Blick ins Log. Setze in der `.env`:
 
@@ -481,7 +550,7 @@ freelancer-scanner/
 │   └── templates/           Die HTML-Seiten
 ├── config/                  Deine Einstellungen (ohne Programmieren änderbar)
 ├── data/projects.db         Die Datenbank (wird automatisch angelegt)
-├── tests/                   64 automatische Tests
+├── tests/                   91 automatische Tests
 ├── .env                     Deine Zugangsdaten (nie hochladen!)
 ├── .env.example             Vorlage dafür
 ├── requirements.txt         Die benötigten Pakete
@@ -508,9 +577,10 @@ Scoring-Engine in Python
    ↓
 in die Datenbank speichern
    ↓
-Score ≥ 75?  →  Bewerbungsentwurf erzeugen + Telegram-Meldung
+Chance ≥ 75?  →  Telegram-Meldung
+Score ≥ 82 oder ARBITRAGE?  →  zweiter LLM-Aufruf: Bewerbungsentwurf
    ↓
-Dashboard
+Dashboard (ARBITRAGE oben, dann nach Chance sortiert)
 ```
 
 ### Technische Entscheidungen und ihre Begründung
@@ -524,6 +594,9 @@ Dashboard
 | Vorfilter vor dem KI-Aufruf | Spart 60–70 % der KI-Kosten |
 | Entwurf erst ab Mindestscore | Ein Entwurf für einen Job mit Score 34 ist verschwendetes Geld |
 | Budget-Komponente gedeckelt | Ein gutes Budget darf ein riskantes Projekt nicht attraktiv machen |
+| Gebot auf Höchstaufwand kalkuliert | Du erreichst deinen Zielsatz auch im pessimistischen Fall |
+| Frische getrennt vom Score | Der Score bleibt stabil und damit später auswertbar |
+| Melden und Entwerfen getrennt | Melden kostet nichts, ein Entwurf kostet einen LLM-Aufruf |
 | Kein Scraping | Nur die offizielle Schnittstelle wird genutzt |
 | Keine Automatik-Bewerbung | Bewusst nicht vorgesehen. Ein Test prüft, dass es sie auch nicht gibt |
 

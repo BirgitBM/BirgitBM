@@ -32,6 +32,9 @@ class LLMEvaluation(BaseModel):
     model_config = {"extra": "ignore"}
 
     technical_fit: float = Field(ge=0, le=10)
+    # Wie stark KI, n8n, Make, Zapier oder generierter Code die manuelle
+    # Arbeit tatsaechlich ersetzen -- der Hebel des Geschaeftsmodells.
+    automation_leverage: float = Field(ge=0, le=10)
     difficulty: float = Field(ge=0, le=10)
     risk: float = Field(ge=0, le=10)
     clarity: float = Field(ge=0, le=10)
@@ -78,6 +81,7 @@ class ScoreBreakdown(BaseModel):
     """Wie der Gesamtscore zustande kam -- fuer die Detailseite."""
 
     technical_fit: float
+    automation_leverage: float
     budget_ratio: float
     clarity: float
     risk: float
@@ -86,14 +90,35 @@ class ScoreBreakdown(BaseModel):
 
 
 class ScoreResult(BaseModel):
-    """Ergebnis der Scoring-Engine."""
+    """Ergebnis der Scoring-Engine.
+
+    Zwei Kennzahlen mit unterschiedlichem Zweck:
+
+      overall_score      Qualitaetsurteil. Aendert sich nie wieder, damit
+                         spaetere Auswertungen vergleichbar bleiben.
+      opportunity_score  overall_score plus Frischebonus. Nur fuer die
+                         Reihenfolge im Dashboard und die Benachrichtigung --
+                         denn ein guter Job von gestern ist meist vergeben.
+    """
 
     overall_score: float
+    opportunity_score: float
     raw_score: float
     category: str  # A | B | C
     risk_level: RiskLevel
+
     recommended_bid_usd: float | None = None
+    # Was du pro Stunde verdienst, wenn die OBERE Aufwandsschaetzung eintritt.
     effective_hourly_rate_usd: float | None = None
+    # Was das Kundenbudget pro Stunde hergibt (Grundlage der Budget-Bewertung).
+    budget_hourly_rate_usd: float | None = None
+
+    freshness_bonus: float = 0.0
+    age_minutes: float | None = None
+
+    is_arbitrage: bool = False
+    arbitrage_misses: list[str] = Field(default_factory=list)
+
     breakdown: ScoreBreakdown
     applied_caps: list[str] = Field(default_factory=list)
     notes: list[str] = Field(default_factory=list)

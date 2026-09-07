@@ -3,11 +3,21 @@
 # Nach Änderungen die Anwendung neu starten.
 
 # ---------------------------------------------------------------
-# Ab welchem Score gilt ein Projekt als interessant?
-# Nur diese Projekte lösen eine Telegram-Nachricht aus und bekommen
-# automatisch einen Bewerbungsentwurf.
+# Zwei getrennte Schwellwerte.
+#
+#   min_score    -> Ab hier bekommst du eine Telegram-Nachricht.
+#                   Geprüft wird der opportunity_score (Qualität + Frische),
+#                   denn eine Meldung ist zeitkritisch.
+#
+#   apply_score  -> Ab hier wird automatisch ein Bewerbungsentwurf erzeugt.
+#                   Geprüft wird der overall_score (reine Qualität), denn
+#                   das kostet Geld. Darunter jederzeit per Button im
+#                   Dashboard nachholbar.
+#
+# Bewusst getrennt: melden ist billig, ein Entwurf kostet einen LLM-Aufruf.
 # ---------------------------------------------------------------
 min_score: 75
+apply_score: 82
 
 # Dein Ziel-Stundensatz in USD. Grundlage für die Budget-/Aufwand-Rechnung.
 # Höher = der Scanner wird wählerischer.
@@ -17,12 +27,18 @@ target_hourly_rate_usd: 60
 # Gewichtung der sechs Kriterien. Summe muss 1.0 ergeben.
 # ---------------------------------------------------------------
 weights:
-  technical_fit: 0.30      # Wie gut mit KI / n8n / Make / Zapier / APIs lösbar
-  budget_ratio: 0.20       # Budget im Verhältnis zum geschätzten Aufwand
-  clarity: 0.15            # Wie klar ist die Aufgabe beschrieben
-  risk: 0.15               # Technisches Risiko (invertiert)
-  simplicity: 0.10         # Wenig Spezialprogrammierung nötig (invertiert)
-  reusability: 0.10        # Wiederverwendbarkeit für spätere Aufträge
+  technical_fit: 0.22        # Wie gut mit KI / n8n / Make / Zapier / APIs lösbar
+  automation_leverage: 0.18  # Wie viel manuelle Arbeit KI/Low-Code wirklich ersetzt
+  budget_ratio: 0.18         # Budget im Verhältnis zum geschätzten Aufwand
+  risk: 0.15                 # Technisches Risiko (invertiert)
+  clarity: 0.13              # Wie klar ist die Aufgabe beschrieben
+  reusability: 0.09          # Wiederverwendbarkeit für spätere Aufträge
+  simplicity: 0.05           # Wenig Spezialprogrammierung nötig (invertiert)
+
+# Warum diese Verteilung: automation_leverage misst weitgehend dasselbe wie
+# "simplicity", nur aus der nützlicheren Richtung -- deshalb übernimmt es
+# dessen Gewicht fast vollständig. Die restlichen Punkte kommen anteilig
+# aus technical_fit, mit dem es sich teilweise überschneidet.
 
 # ---------------------------------------------------------------
 # Konservative Deckel ("Risiko-Bremse").
@@ -38,6 +54,45 @@ caps:
   many_red_flags: { threshold: 3, max_score: 60 }   # 3 oder mehr Warnsignale
   employer_unverified: { max_score: 70 }            # Auftraggeber ohne Zahlungsnachweis
   no_budget: { max_score: 65 }                      # Kein Budget angegeben
+
+# ---------------------------------------------------------------
+# Frische-Bonus (nur für die Reihenfolge und die Meldung).
+#
+# Auf Freelancer.com sind gute Projekte nach 15-30 Minuten meist vergeben.
+# Ein frischer Job mit wenigen Geboten ist deshalb mehr wert als ein
+# gleich guter von gestern. Der overall_score bleibt davon unberührt --
+# sonst wären spätere Auswertungen wertlos.
+#
+# Maximal erreichbar: age_bonus + bid_bonus = 10 Punkte.
+# ---------------------------------------------------------------
+freshness:
+  age_bonus:               # Alter seit Veröffentlichung in Minuten
+    - { max_minutes: 15,   bonus: 6 }
+    - { max_minutes: 60,   bonus: 4 }
+    - { max_minutes: 180,  bonus: 2 }
+    - { max_minutes: 360,  bonus: 1 }
+  bid_bonus:               # Wie viele Gebote schon abgegeben wurden
+    - { max_bids: 5,       bonus: 4 }
+    - { max_bids: 15,      bonus: 2 }
+    - { max_bids: 30,      bonus: 1 }
+  # Ist das Alter unbekannt, gibt es keinen Bonus -- nicht raten.
+  unknown_age_bonus: 0
+
+# ---------------------------------------------------------------
+# ARBITRAGE-Kennzeichnung.
+#
+# Die Projekte, bei denen sich das Geschäftsmodell wirklich rechnet:
+# hoher Automatisierungshebel, geringes Risiko, guter Stundensatz.
+# Alle Bedingungen müssen erfüllt sein.
+# ---------------------------------------------------------------
+arbitrage:
+  min_overall_score: 80
+  min_automation_leverage: 8
+  max_risk: 4
+  min_effective_hourly_rate_usd: 60
+  # Ausgeschlossene Technologien werden ohnehin vorgefiltert. Die Prüfung
+  # läuft zur Sicherheit trotzdem noch einmal -- exclude.yaml kann sich
+  # ändern, nachdem ein Projekt bereits bewertet wurde.
 
 # ---------------------------------------------------------------
 # Vorfilter: greift VOR dem LLM-Aufruf und spart damit Kosten.

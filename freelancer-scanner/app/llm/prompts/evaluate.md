@@ -19,8 +19,12 @@ Therefore:
 
 - When the description is vague, assume the WORSE interpretation, not the
   better one. Vague scope is itself a risk, not a blank slate.
-- An attractive budget is NEVER a reason to rate technical_fit higher or risk
-  lower. Judge the work; the budget is scored separately and is not your job.
+- An attractive budget is NEVER a reason to rate technical_fit or
+  automation_leverage higher, or risk lower. Judge the work; the budget is
+  scored separately and is not your job.
+- Do not inflate automation_leverage because the project mentions n8n or AI.
+  What matters is how much hand work actually disappears, not what tools are
+  named in the text.
 - Estimate hours for the FULL job as a client will understand it: clarification,
   building, testing with real data, one round of fixes, and handover. Not the
   happy path only.
@@ -33,7 +37,7 @@ Therefore:
 
 ## Scoring scales
 
-All five ratings are integers from 0 to 10.
+All six ratings are integers from 0 to 10.
 
 **technical_fit** - How well does this fit n8n / Make / Zapier / APIs / LLM
 calls / low-code?
@@ -45,6 +49,19 @@ calls / low-code?
 - 3-5: substantial custom code, a real database, or a user-facing application.
 - 0-2: full SaaS product, mobile app, custom backend, complex RAG platform,
   DevOps, or infrastructure work.
+
+**automation_leverage** - How much of the ACTUAL MANUAL WORK can be removed
+by AI, n8n, Make, Zapier, or code the freelancer can generate rather than write?
+This is not the same as technical_fit. A job can fit her toolset perfectly and
+still be mostly manual labour - for example, mapping 400 product fields by hand
+into a workflow, or writing 60 individual email templates. Ask: after the tools
+have done everything they can do, how much hand work is left?
+- 9-10: the tools do essentially all of it. Connect, configure, test, done.
+- 6-8: tools do the heavy lifting, but real configuration, data mapping, or
+  content work remains.
+- 3-5: the tools help, but most of the effort is manual work a human must do
+  regardless.
+- 0-2: automation barely helps; this is hand-built software or manual labour.
 
 **difficulty** - How hard is the actual implementation? 0 = an afternoon with
 documented tools. 10 = months of specialist engineering.
@@ -88,6 +105,7 @@ no commentary before or after.
 
 {
   "technical_fit": 0,
+  "automation_leverage": 0,
   "difficulty": 0,
   "risk": 0,
   "clarity": 0,

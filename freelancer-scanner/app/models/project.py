@@ -73,9 +73,19 @@ class Project(Base):
 
     # --- Bewertung -------------------------------------------------------
     overall_score: Mapped[float | None] = mapped_column(Float, index=True)
+    # Qualitaet plus Frischebonus -- danach wird sortiert und gemeldet.
+    opportunity_score: Mapped[float | None] = mapped_column(Float, index=True)
     category: Mapped[str | None] = mapped_column(String(2))
     risk_level: Mapped[str | None] = mapped_column(String(16))
     recommended_bid_usd: Mapped[float | None] = mapped_column(Float)
+    # Verdienst pro Stunde bei oberer Aufwandsschaetzung. Wird gespeichert,
+    # damit spaeter auswertbar ist, welche Auftragsarten sich lohnen.
+    effective_hourly_rate_usd: Mapped[float | None] = mapped_column(Float)
+    budget_hourly_rate_usd: Mapped[float | None] = mapped_column(Float)
+    automation_leverage: Mapped[float | None] = mapped_column(Float)
+    freshness_bonus: Mapped[float | None] = mapped_column(Float)
+    age_minutes: Mapped[float | None] = mapped_column(Float)
+    is_arbitrage: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
     estimated_hours_min: Mapped[float | None] = mapped_column(Float)
     estimated_hours_max: Mapped[float | None] = mapped_column(Float)
     evaluation: Mapped[dict[str, Any] | None] = mapped_column(JSON)
@@ -117,6 +127,22 @@ class Project(Base):
         if self.estimated_hours_min == self.estimated_hours_max:
             return f"{self.estimated_hours_min:.0f} h"
         return f"{self.estimated_hours_min:.0f}–{self.estimated_hours_max:.0f} h"
+
+    @property
+    def rate_display(self) -> str:
+        if self.effective_hourly_rate_usd is None:
+            return "–"
+        return f"{self.effective_hourly_rate_usd:,.0f} USD/h"
+
+    @property
+    def age_display(self) -> str:
+        if self.age_minutes is None:
+            return "–"
+        if self.age_minutes < 60:
+            return f"vor {self.age_minutes:.0f} Min."
+        if self.age_minutes < 1440:
+            return f"vor {self.age_minutes / 60:.0f} Std."
+        return f"vor {self.age_minutes / 1440:.0f} Tagen"
 
     @property
     def status_label(self) -> str:

@@ -36,6 +36,8 @@ class ScanReport:
     prefiltered: int = 0
     evaluated: int = 0
     above_threshold: int = 0
+    arbitrage: int = 0
+    drafted: int = 0
     notified: int = 0
     errors: list[str] = field(default_factory=list)
     started_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
@@ -44,7 +46,8 @@ class ScanReport:
         return (
             f"{self.fetched} gefunden, {self.duplicates} bereits bekannt, "
             f"{self.prefiltered} vorgefiltert, {self.evaluated} bewertet, "
-            f"{self.above_threshold} ueber Mindestscore, {self.notified} gemeldet"
+            f"{self.above_threshold} ueber Mindestscore, {self.arbitrage} ARBITRAGE, "
+            f"{self.drafted} Entwuerfe, {self.notified} gemeldet"
         )
 
 
@@ -129,9 +132,16 @@ class Scanner:
         score = score_project(project, evaluation, self.scoring)
 
         project.overall_score = score.overall_score
+        project.opportunity_score = score.opportunity_score
         project.category = score.category
         project.risk_level = score.risk_level.value
         project.recommended_bid_usd = score.recommended_bid_usd
+        project.effective_hourly_rate_usd = score.effective_hourly_rate_usd
+        project.budget_hourly_rate_usd = score.budget_hourly_rate_usd
+        project.automation_leverage = evaluation.automation_leverage
+        project.freshness_bonus = score.freshness_bonus
+        project.age_minutes = score.age_minutes
+        project.is_arbitrage = score.is_arbitrage
         project.estimated_hours_min = evaluation.estimated_hours_min
         project.estimated_hours_max = evaluation.estimated_hours_max
         project.evaluation = evaluation.model_dump()
@@ -141,21 +151,35 @@ class Scanner:
         report.evaluated += 1
 
         logger.info(
-            "Bewertet: %-55s Score %5.1f (%s)",
-            project.title[:55],
+            "Bewertet: %-52s Score %5.1f  Chance %5.1f (%s)%s",
+            project.title[:52],
             score.overall_score,
+            score.opportunity_score,
             score.category,
+            "  [ARBITRAGE]" if score.is_arbitrage else "",
+        )
+
+        # Zwei getrennte Schwellen:
+        #   melden  -> opportunity_score (zeitkritisch, kostet nichts)
+        #   Entwurf -> overall_score (Qualitaet, kostet einen LLM-Aufruf)
+        should_notify = score.opportunity_score >= self.scoring.min_score
+        should_draft = (
+            score.overall_score >= self.scoring.apply_score or score.is_arbitrage
         )
 
         proposal_excerpt: str | None = None
-        if score.overall_score >= self.scoring.min_score:
+        if should_notify:
             report.above_threshold += 1
             project.status = ProjectStatus.INTERESTING
-            # Zweiter LLM-Aufruf -- nur fuer Projekte, die es wert sind.
+        if score.is_arbitrage:
+            report.arbitrage += 1
+
+        if should_draft:
             try:
                 proposal = self.llm.draft_proposal(project, evaluation)
                 project.proposal_draft = proposal.as_text()
                 proposal_excerpt = proposal.opening
+                report.drafted += 1
             except Exception as exc:  # noqa: BLE001
                 logger.warning("Bewerbungsentwurf fehlgeschlagen: %s", exc)
 
@@ -163,7 +187,7 @@ class Scanner:
             stored = ProjectRepository(session).add(project)
             stored_id = stored.id
 
-        if score.overall_score >= self.scoring.min_score:
+        if should_notify:
             if self.notifier.send_project(project, score, proposal_excerpt):
                 report.notified += 1
                 with session_scope() as session:
@@ -173,11 +197,12 @@ class Scanner:
     def run(self) -> ScanReport:
         report = ScanReport()
         logger.info(
-            "Scan gestartet (Quelle: %s, LLM: %s/%s, Mindestscore: %s)",
+            "Scan gestartet (Quelle: %s, LLM: %s/%s, melden ab %s, Entwurf ab %s)",
             self.client.name,
             self.llm.provider_name,
             self.llm.model,
             self.scoring.min_score,
+            self.scoring.apply_score,
         )
 
         candidates = self._fetch_candidates(report)

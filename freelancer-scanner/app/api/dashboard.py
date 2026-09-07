@@ -16,14 +16,25 @@ templates = Jinja2Templates(directory=str(BASE_DIR / "app" / "templates"))
 
 STATUS_OPTIONS = [(status.value, label) for status, label in STATUS_LABELS.items()]
 
-BREAKDOWN_LABELS = [
-    ("technical_fit", "Technische Eignung", 0.30),
-    ("budget_ratio", "Budget / Aufwand", 0.20),
-    ("clarity", "Klarheit", 0.15),
-    ("risk", "Geringes Risiko", 0.15),
-    ("simplicity", "Wenig Sonderprogrammierung", 0.10),
-    ("reusability", "Wiederverwendbarkeit", 0.10),
+# Beschriftung und Gewicht kommen aus config/scoring.yaml -- so bleibt das
+# Dashboard automatisch richtig, wenn du die Gewichte aenderst.
+BREAKDOWN_LABELS: list[tuple[str, str]] = [
+    ("technical_fit", "Technische Eignung"),
+    ("automation_leverage", "Automatisierungshebel"),
+    ("budget_ratio", "Budget / Aufwand"),
+    ("risk", "Geringes Risiko"),
+    ("clarity", "Klarheit"),
+    ("reusability", "Wiederverwendbarkeit"),
+    ("simplicity", "Wenig Sonderprogrammierung"),
 ]
+
+
+def _breakdown_rows() -> list[tuple[str, str, float]]:
+    weights = get_scoring_config().weights
+    return [
+        (key, label, getattr(weights, key))
+        for key, label in BREAKDOWN_LABELS
+    ]
 
 
 def _page_info() -> dict:
@@ -34,6 +45,7 @@ def _page_info() -> dict:
         "llm_provider": settings.effective_llm_provider,
         "source": "Demo-Daten" if settings.demo_mode else "Freelancer API",
         "min_score": scoring.min_score,
+        "apply_score": scoring.apply_score,
     }
 
 
@@ -43,8 +55,11 @@ def dashboard(request: Request, filter: str | None = None, message: str | None =
 
     status = None
     min_score = None
+    arbitrage_only = False
     if filter == "top":
         min_score = scoring.min_score
+    elif filter == "arbitrage":
+        arbitrage_only = True
     elif filter:
         try:
             status = ProjectStatus(filter)
@@ -53,7 +68,9 @@ def dashboard(request: Request, filter: str | None = None, message: str | None =
 
     with session_scope() as session:
         repository = ProjectRepository(session)
-        projects = repository.list_projects(status=status, min_score=min_score)
+        projects = repository.list_projects(
+            status=status, min_score=min_score, arbitrage_only=arbitrage_only
+        )
         stats = repository.stats_since(start_of_today_utc(), scoring.min_score)
 
     return templates.TemplateResponse(
@@ -84,7 +101,7 @@ def project_detail(request: Request, project_id: int, message: str | None = None
             "project": project,
             "evaluation": project.evaluation,
             "breakdown": project.score_breakdown,
-            "breakdown_labels": BREAKDOWN_LABELS,
+            "breakdown_labels": _breakdown_rows(),
             "info": _page_info(),
             "status_options": STATUS_OPTIONS,
             "message": message,

@@ -107,6 +107,7 @@ class Caps(BaseModel):
 
 class Weights(BaseModel):
     technical_fit: float
+    automation_leverage: float
     budget_ratio: float
     clarity: float
     risk: float
@@ -116,12 +117,46 @@ class Weights(BaseModel):
     def total(self) -> float:
         return (
             self.technical_fit
+            + self.automation_leverage
             + self.budget_ratio
             + self.clarity
             + self.risk
             + self.simplicity
             + self.reusability
         )
+
+
+class AgeBonusRule(BaseModel):
+    max_minutes: float
+    bonus: float
+
+
+class BidBonusRule(BaseModel):
+    max_bids: int
+    bonus: float
+
+
+class FreshnessConfig(BaseModel):
+    """Bonus fuer frische Projekte -- nur fuer Reihenfolge und Meldung."""
+
+    age_bonus: list[AgeBonusRule] = Field(default_factory=list)
+    bid_bonus: list[BidBonusRule] = Field(default_factory=list)
+    unknown_age_bonus: float = 0.0
+
+    @property
+    def max_bonus(self) -> float:
+        best_age = max((rule.bonus for rule in self.age_bonus), default=0.0)
+        best_bid = max((rule.bonus for rule in self.bid_bonus), default=0.0)
+        return best_age + best_bid
+
+
+class ArbitrageConfig(BaseModel):
+    """Wann ein Projekt als besonders lohnend gekennzeichnet wird."""
+
+    min_overall_score: float = 80
+    min_automation_leverage: float = 8
+    max_risk: float = 4
+    min_effective_hourly_rate_usd: float = 60
 
 
 class PrefilterConfig(BaseModel):
@@ -132,12 +167,28 @@ class PrefilterConfig(BaseModel):
 
 
 class ScoringConfig(BaseModel):
+    # Schwelle fuer die Benachrichtigung (geprueft am opportunity_score)
     min_score: float = 75
+    # Schwelle fuer den automatischen Bewerbungsentwurf (am overall_score)
+    apply_score: float = 82
     target_hourly_rate_usd: float = 60
     weights: Weights
     caps: Caps
+    freshness: FreshnessConfig = Field(default_factory=FreshnessConfig)
+    arbitrage: ArbitrageConfig = Field(default_factory=ArbitrageConfig)
     prefilter: PrefilterConfig = Field(default_factory=PrefilterConfig)
     currency_rates_usd: dict[str, float] = Field(default_factory=lambda: {"USD": 1.0})
+
+    @field_validator("apply_score")
+    @classmethod
+    def _apply_not_below_min(cls, value: float, info) -> float:
+        minimum = info.data.get("min_score")
+        if minimum is not None and value < minimum:
+            raise ValueError(
+                f"apply_score ({value}) darf nicht unter min_score ({minimum}) liegen. "
+                "Sonst wuerden Entwuerfe fuer Projekte erzeugt, die du nie gemeldet bekommst."
+            )
+        return value
 
     @field_validator("weights")
     @classmethod

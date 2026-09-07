@@ -12,7 +12,9 @@ riskantes Projekt NICHT hochziehen. Dafuer sorgen zwei Mechanismen:
 
 from __future__ import annotations
 
-from app.config import ScoringConfig, get_scoring_config
+from datetime import datetime, timezone
+
+from app.config import ExcludeConfig, ScoringConfig, get_exclude_config, get_scoring_config
 from app.logging_setup import get_logger
 from app.models.evaluation import (
     LLMEvaluation,
@@ -70,7 +72,11 @@ def _budget_component(
 ) -> tuple[float, float | None, list[str]]:
     """Bewertet das Verhaeltnis von Budget zu geschaetztem Aufwand.
 
-    Rueckgabe: (Teilscore 0-1, effektiver Stundensatz in USD, Hinweise)
+    Rueckgabe: (Teilscore 0-1, Stundensatz laut Kundenbudget, Hinweise)
+
+    Achtung, zwei verschiedene Kennzahlen:
+      - der Wert hier ist, was das KUNDENBUDGET pro Stunde hergibt
+      - effective_hourly_rate_usd weiter unten ist, was DU verdienst
     """
     notes: list[str] = []
     hours = evaluation.hours_mid
@@ -110,10 +116,15 @@ def _recommended_bid(
 ) -> float | None:
     """Gebotsempfehlung: der niedrigere Wert aus Budgetanteil und Aufwandskalkulation.
 
-    Bewusst konservativ -- lieber unter dem Budgetrahmen bleiben, als
-    ueber der eigenen Kalkulation zu liegen.
+    Kalkuliert wird bewusst auf die OBERE Aufwandsschaetzung, nicht auf den
+    Mittelwert. Zwei Gruende:
+
+      1. Konservativ: Du erreichst deinen Zielstundensatz auch dann noch,
+         wenn die pessimistische Schaetzung eintritt.
+      2. Ohne das waere effective_hourly_rate (Gebot geteilt durch hours_max)
+         eine Konstante und damit als Kennzahl wertlos.
     """
-    hours = evaluation.hours_mid
+    hours = evaluation.estimated_hours_max
     cost_based = None
     if hours > 0:
         cost_based = hours * config.target_hourly_rate_usd + evaluation.estimated_tool_cost_usd
@@ -189,6 +200,108 @@ def _apply_caps(
     return score, applied
 
 
+def project_age_minutes(project: Project, now: datetime | None = None) -> float | None:
+    """Alter des Projekts seit Veroeffentlichung in Minuten."""
+    if project.posted_at is None:
+        return None
+    reference = now or datetime.now(timezone.utc)
+    posted = project.posted_at
+    if posted.tzinfo is None:
+        posted = posted.replace(tzinfo=timezone.utc)
+    return max((reference - posted).total_seconds() / 60.0, 0.0)
+
+
+def _freshness_bonus(
+    project: Project, config: ScoringConfig, now: datetime | None = None
+) -> tuple[float, float | None, list[str]]:
+    """Bonuspunkte fuer frische Projekte mit wenigen Geboten.
+
+    Fliesst NICHT in den overall_score ein -- nur in den opportunity_score,
+    nach dem sortiert und gemeldet wird. Sonst wuerde sich die Bewertung
+    eines Projekts im Zeitverlauf aendern und spaetere Auswertungen
+    waeren nicht mehr vergleichbar.
+    """
+    notes: list[str] = []
+    rules = config.freshness
+    age = project_age_minutes(project, now)
+
+    if age is None:
+        age_bonus = rules.unknown_age_bonus
+        notes.append("Veroeffentlichungszeit unbekannt -- kein Altersbonus.")
+    else:
+        age_bonus = 0.0
+        for rule in sorted(rules.age_bonus, key=lambda item: item.max_minutes):
+            if age <= rule.max_minutes:
+                age_bonus = rule.bonus
+                break
+
+    bid_bonus = 0.0
+    if project.bid_count is not None:
+        for rule in sorted(rules.bid_bonus, key=lambda item: item.max_bids):
+            if project.bid_count <= rule.max_bids:
+                bid_bonus = rule.bonus
+                break
+
+    total = age_bonus + bid_bonus
+    if total > 0:
+        parts = []
+        if age_bonus:
+            parts.append(f"frisch (+{age_bonus:.0f})")
+        if bid_bonus:
+            parts.append(f"wenige Gebote (+{bid_bonus:.0f})")
+        notes.append("Frischebonus: " + ", ".join(parts))
+
+    return total, age, notes
+
+
+def _check_arbitrage(
+    project: Project,
+    evaluation: LLMEvaluation,
+    overall_score: float,
+    effective_rate: float | None,
+    config: ScoringConfig,
+    excludes: ExcludeConfig | None = None,
+) -> tuple[bool, list[str]]:
+    """Kennzeichnet Projekte, bei denen sich das Geschaeftsmodell rechnet.
+
+    Alle Bedingungen muessen erfuellt sein. Rueckgabe: (ja/nein, was fehlte).
+    """
+    rules = config.arbitrage
+    misses: list[str] = []
+
+    if overall_score < rules.min_overall_score:
+        misses.append(
+            f"Score {overall_score:.0f} unter {rules.min_overall_score:.0f}"
+        )
+    if evaluation.automation_leverage < rules.min_automation_leverage:
+        misses.append(
+            f"Automatisierungshebel {evaluation.automation_leverage:.0f} "
+            f"unter {rules.min_automation_leverage:.0f}"
+        )
+    if evaluation.risk > rules.max_risk:
+        misses.append(f"Risiko {evaluation.risk:.0f} ueber {rules.max_risk:.0f}")
+    if effective_rate is None:
+        misses.append("Stundensatz nicht berechenbar")
+    elif effective_rate < rules.min_effective_hourly_rate_usd:
+        misses.append(
+            f"Stundensatz {effective_rate:.0f} USD unter "
+            f"{rules.min_effective_hourly_rate_usd:.0f} USD"
+        )
+
+    # Sicherheitsnetz: exclude.yaml kann sich geaendert haben, seit das
+    # Projekt den Vorfilter passiert hat.
+    excludes = excludes or get_exclude_config()
+    haystack = " ".join(
+        [project.title or "", project.description or "", " ".join(project.skills or [])]
+    ).lower()
+    for technology in excludes.exclude_technologies:
+        if technology.lower() in haystack:
+            misses.append(f"Ausgeschlossene Technologie: {technology}")
+            break
+
+    return not misses, misses
+
+
 def _category(score: float, config: ScoringConfig) -> str:
     if score >= config.min_score:
         return "A"
@@ -201,15 +314,17 @@ def score_project(
     project: Project,
     evaluation: LLMEvaluation,
     config: ScoringConfig | None = None,
+    now: datetime | None = None,
 ) -> ScoreResult:
     """Berechnet den Gesamtscore aus der KI-Einschaetzung und den Projektdaten."""
     config = config or get_scoring_config()
     weights = config.weights
 
-    budget_component, effective_rate, notes = _budget_component(project, evaluation, config)
+    budget_component, budget_rate, notes = _budget_component(project, evaluation, config)
 
     breakdown = ScoreBreakdown(
         technical_fit=evaluation.technical_fit / 10,
+        automation_leverage=evaluation.automation_leverage / 10,
         budget_ratio=budget_component,
         clarity=evaluation.clarity / 10,
         risk=(10 - evaluation.risk) / 10,
@@ -219,6 +334,7 @@ def score_project(
 
     raw_score = 100 * (
         weights.technical_fit * breakdown.technical_fit
+        + weights.automation_leverage * breakdown.automation_leverage
         + weights.budget_ratio * breakdown.budget_ratio
         + weights.clarity * breakdown.clarity
         + weights.risk * breakdown.risk
@@ -226,15 +342,46 @@ def score_project(
         + weights.reusability * breakdown.reusability
     )
 
-    final_score, applied_caps = _apply_caps(raw_score, project, evaluation, config)
+    overall_score, applied_caps = _apply_caps(raw_score, project, evaluation, config)
+    overall_score = round(overall_score, 1)
+
+    recommended_bid = _recommended_bid(project, evaluation, config)
+
+    # Was du tatsaechlich pro Stunde verdienst, wenn die obere
+    # Aufwandsschaetzung eintritt. Bewusst der pessimistische Fall.
+    effective_rate: float | None = None
+    if recommended_bid is not None:
+        if project.project_type == "hourly":
+            effective_rate = recommended_bid
+        elif evaluation.estimated_hours_max > 0:
+            effective_rate = round(
+                recommended_bid / evaluation.estimated_hours_max, 2
+            )
+
+    freshness_bonus, age_minutes, freshness_notes = _freshness_bonus(project, config, now)
+    notes.extend(freshness_notes)
+
+    # Der Frischebonus veraendert den overall_score nicht -- nur die
+    # Dringlichkeit, mit der das Projekt angezeigt und gemeldet wird.
+    opportunity_score = round(min(100.0, overall_score + freshness_bonus), 1)
+
+    is_arbitrage, arbitrage_misses = _check_arbitrage(
+        project, evaluation, overall_score, effective_rate, config
+    )
 
     return ScoreResult(
-        overall_score=round(final_score, 1),
+        overall_score=overall_score,
+        opportunity_score=opportunity_score,
         raw_score=round(raw_score, 1),
-        category=_category(final_score, config),
+        category=_category(overall_score, config),
         risk_level=RiskLevel.from_value(evaluation.risk),
-        recommended_bid_usd=_recommended_bid(project, evaluation, config),
-        effective_hourly_rate_usd=round(effective_rate, 2) if effective_rate else None,
+        recommended_bid_usd=recommended_bid,
+        effective_hourly_rate_usd=effective_rate,
+        budget_hourly_rate_usd=round(budget_rate, 2) if budget_rate else None,
+        freshness_bonus=freshness_bonus,
+        age_minutes=round(age_minutes, 1) if age_minutes is not None else None,
+        is_arbitrage=is_arbitrage,
+        arbitrage_misses=arbitrage_misses,
         breakdown=breakdown,
         applied_caps=applied_caps,
         notes=notes,

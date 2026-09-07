@@ -13,7 +13,7 @@ from app.llm.provider import LLMError, LLMProvider, LLMResponse
 from app.models.evaluation import LLMEvaluation, Proposal
 
 VALID = {
-    "technical_fit": 9, "difficulty": 3, "risk": 2, "clarity": 8, "reusability": 7,
+    "technical_fit": 9, "automation_leverage": 8, "difficulty": 3, "risk": 2, "clarity": 8, "reusability": 7,
     "estimated_hours_min": 4, "estimated_hours_max": 8, "estimated_tool_cost_usd": 0,
     "required_tools": ["n8n"], "required_apis": [], "red_flags": [],
     "short_summary": "s", "implementation_idea": "i", "reason_for_score": "r",

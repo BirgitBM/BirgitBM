@@ -4,6 +4,14 @@
 
 <p class="subtitle"><a href="/">← Zurück zur Übersicht</a></p>
 
+{% if project.is_arbitrage %}
+  <div class="arb-banner">
+    <strong>💎 ARBITRAGE</strong> – hoher Automatisierungshebel, geringes Risiko
+    und ein Stundensatz über deinem Ziel. Genau die Art Auftrag, für die dieses
+    System gebaut ist.
+  </div>
+{% endif %}
+
 <h2 style="margin:0 0 6px;font-size:19px">{{ project.title }}</h2>
 <p class="subtitle">
   {% if project.url %}<a href="{{ project.url }}" target="_blank" rel="noopener">Projekt auf Freelancer öffnen</a> · {% endif %}
@@ -65,6 +73,13 @@
       {% endif %}
     </div>
 
+    {% if breakdown and breakdown.arbitrage_misses %}
+    <div class="panel">
+      <h2>Warum kein ARBITRAGE</h2>
+      <ul>{% for grund in breakdown.arbitrage_misses %}<li>{{ grund }}</li>{% endfor %}</ul>
+    </div>
+    {% endif %}
+
     {% if evaluation.red_flags %}
     <div class="panel">
       <h2>Risiken und Warnsignale</h2>
@@ -81,7 +96,11 @@
           Entwurf zum Kopieren. Er wird niemals automatisch versendet.
         </p>
       {% else %}
-        <p style="color:var(--muted)">Noch kein Entwurf vorhanden.</p>
+        <p style="color:var(--muted)">
+          Noch kein Entwurf vorhanden – automatisch erzeugt wird er erst ab
+          Score {{ info.apply_score|round(0)|int }} oder bei ARBITRAGE.
+          Du kannst ihn hier jederzeit manuell erstellen.
+        </p>
         <form method="post" action="/projects/{{ project.id }}/proposal">
           <button class="btn primary" type="submit">Entwurf jetzt erzeugen</button>
         </form>
@@ -102,14 +121,26 @@
         <dd class="score {{ (project.category or 'c')|lower }}">
           {{ project.overall_score|round(0)|int if project.overall_score is not none else '–' }} / 100
         </dd>
+        <dt>Chance</dt>
+        <dd>
+          {{ project.opportunity_score|round(0)|int if project.opportunity_score is not none else '–' }}
+          {%- if project.freshness_bonus %} <span class="bonus">+{{ project.freshness_bonus|round(0)|int }} frisch</span>{% endif %}
+        </dd>
         <dt>Kategorie</dt><dd>{{ project.category or '–' }}</dd>
+        <dt>Hebel</dt>
+        <dd>{{ project.automation_leverage|round(0)|int if project.automation_leverage is not none else '–' }} / 10</dd>
         <dt>Budget</dt><dd>{{ project.budget_display }}</dd>
         <dt>Aufwand</dt><dd>{{ project.hours_display }}</dd>
         <dt>Empf. Gebot</dt>
         <dd>{{ (project.recommended_bid_usd|round(0)|int ~ ' USD') if project.recommended_bid_usd else '–' }}</dd>
-        {% if breakdown and breakdown.effective_hourly_rate_usd %}
-        <dt>Effektiv</dt><dd>{{ breakdown.effective_hourly_rate_usd|round(0)|int }} USD/h</dd>
+        {% if project.effective_hourly_rate_usd %}
+        <dt>Dein Satz</dt>
+        <dd><strong>{{ project.effective_hourly_rate_usd|round(0)|int }} USD/h</strong></dd>
         {% endif %}
+        {% if project.budget_hourly_rate_usd %}
+        <dt>Budget gibt her</dt><dd>{{ project.budget_hourly_rate_usd|round(0)|int }} USD/h</dd>
+        {% endif %}
+        <dt>Alter</dt><dd>{{ project.age_display }}</dd>
         <dt>Risiko</dt>
         <dd>{% if project.risk_level %}<span class="pill {{ project.risk_level }}">{{ project.risk_level }}</span>{% else %}–{% endif %}</dd>
         <dt>Gebote</dt><dd>{{ project.bid_count if project.bid_count is not none else '–' }}</dd>
@@ -128,7 +159,7 @@
     {% if breakdown and breakdown.breakdown %}
     <div class="panel">
       <h2>Wie der Score entsteht</h2>
-      {% for key, label, weight in breakdown_labels %}
+      {% for key, label, weight in breakdown_labels %}{% if key in breakdown.breakdown %}
       <div class="bar-row">
         <div class="bar-label">
           <span>{{ label }}</span>
@@ -136,7 +167,7 @@
         </div>
         <div class="bar"><span style="width: {{ (breakdown.breakdown[key] * 100)|round(0)|int }}%"></span></div>
       </div>
-      {% endfor %}
+      {% endif %}{% endfor %}
     </div>
     {% endif %}
 

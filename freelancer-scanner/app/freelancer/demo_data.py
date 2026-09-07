@@ -53,6 +53,7 @@ DEMO_PROJECTS: list[dict[str, Any]] = [
         "matched_keyword": "n8n",
         "demo_evaluation": {
             "technical_fit": 10,
+            "automation_leverage": 10,
             "difficulty": 3,
             "risk": 2,
             "clarity": 8,
@@ -146,6 +147,7 @@ DEMO_PROJECTS: list[dict[str, Any]] = [
         "matched_keyword": "Shopify automation",
         "demo_evaluation": {
             "technical_fit": 9,
+            "automation_leverage": 9,
             "difficulty": 4,
             "risk": 3,
             "clarity": 8,
@@ -238,6 +240,7 @@ DEMO_PROJECTS: list[dict[str, Any]] = [
         "matched_keyword": "WordPress automation",
         "demo_evaluation": {
             "technical_fit": 9,
+            "automation_leverage": 9,
             "difficulty": 4,
             "risk": 3,
             "clarity": 8,
@@ -328,6 +331,7 @@ DEMO_PROJECTS: list[dict[str, Any]] = [
         "matched_keyword": "API integration",
         "demo_evaluation": {
             "technical_fit": 3,
+            "automation_leverage": 2,
             "difficulty": 9,
             "risk": 8,
             "clarity": 4,
@@ -390,6 +394,7 @@ DEMO_PROJECTS: list[dict[str, Any]] = [
         "matched_keyword": "API integration",
         "demo_evaluation": {
             "technical_fit": 2,
+            "automation_leverage": 1,
             "difficulty": 9,
             "risk": 9,
             "clarity": 6,

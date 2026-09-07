@@ -46,6 +46,9 @@ def _heuristic_evaluation(title: str, description: str) -> dict:
 
     return {
         "technical_fit": fit,
+        # Grobe Annahme: wo viele passende Signalwoerter stehen, ist auch
+        # der Automatisierungshebel hoch. Nur eine Demo-Naeherung.
+        "automation_leverage": max(0, min(10, 3 + good - 2 * bad)),
         "difficulty": difficulty,
         "risk": risk,
         "clarity": clarity,

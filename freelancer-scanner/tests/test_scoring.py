@@ -21,7 +21,8 @@ def test_gewichtung_ergibt_den_erwarteten_rohwert(make_project, make_evaluation,
     """Handgerechnetes Gegenbeispiel: alle Teilwerte auf 100 Prozent."""
     project = make_project(budget_min=2000, budget_max=2000)  # sehr grosszuegig
     evaluation = make_evaluation(
-        technical_fit=10, difficulty=0, risk=0, clarity=10, reusability=10
+        technical_fit=10, automation_leverage=10, difficulty=0, risk=0,
+        clarity=10, reusability=10,
     )
     result = score_project(project, evaluation, scoring)
     assert result.raw_score == pytest.approx(100.0, abs=0.1)
@@ -95,7 +96,7 @@ def test_schlechtes_stundenverhaeltnis_senkt_den_score(
         scoring,
     )
     assert schlecht.overall_score < gut.overall_score
-    assert schlecht.effective_hourly_rate_usd < scoring.target_hourly_rate_usd
+    assert schlecht.budget_hourly_rate_usd < scoring.target_hourly_rate_usd
 
 
 def test_waehrung_wird_umgerechnet(make_project, make_evaluation, scoring):
@@ -110,7 +111,7 @@ def test_waehrung_wird_umgerechnet(make_project, make_evaluation, scoring):
         make_evaluation(),
         scoring,
     )
-    assert eur.effective_hourly_rate_usd > usd.effective_hourly_rate_usd
+    assert eur.budget_hourly_rate_usd > usd.budget_hourly_rate_usd
 
 
 def test_gebotsempfehlung_bleibt_unter_dem_budget(make_project, make_evaluation, scoring):
@@ -128,7 +129,7 @@ def test_gebotsempfehlung_deckt_mindestens_die_eigenen_kosten_oder_liegt_darunte
     result = score_project(
         project, make_evaluation(estimated_hours_min=10, estimated_hours_max=10), scoring
     )
-    # min(Kostenkalkulation 600, Budgetanteil 170) -> 170
+    # min(Kostenkalkulation 10h x 60 = 600, Budgetanteil 200 x 0.85 = 170) -> 170
     assert result.recommended_bid_usd == pytest.approx(170.0, abs=0.5)
 
 
@@ -136,7 +137,8 @@ def test_score_bleibt_in_den_grenzen(make_project, make_evaluation, scoring):
     schlechtest = score_project(
         make_project(budget_min=50, budget_max=50, employer_verified=False),
         make_evaluation(
-            technical_fit=0, difficulty=10, risk=10, clarity=0, reusability=0,
+            technical_fit=0, automation_leverage=0, difficulty=10, risk=10,
+            clarity=0, reusability=0,
             estimated_hours_min=200, estimated_hours_max=300,
         ),
         scoring,

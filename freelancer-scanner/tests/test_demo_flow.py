@@ -163,13 +163,31 @@ def test_nur_gute_projekte_werden_gemeldet(demo_run):
     assert gemeldet == GUTE_PROJEKTE
 
 
-def test_nur_gute_projekte_bekommen_einen_bewerbungsentwurf(demo_run):
+def test_entwurf_nur_ab_apply_score_oder_bei_arbitrage(demo_run):
+    """Gemeldet wird ab 75, ein Entwurf entsteht erst ab 82 oder bei ARBITRAGE."""
     _, projects, _ = demo_run
-    for freelancer_id in GUTE_PROJEKTE:
-        entwurf = projects[freelancer_id].proposal_draft
-        assert entwurf and len(entwurf) > 200
+    scoring = get_scoring_config()
+
+    for project in projects.values():
+        erwartet = (
+            project.overall_score >= scoring.apply_score or project.is_arbitrage
+        )
+        hat_entwurf = project.proposal_draft is not None
+        assert hat_entwurf == erwartet, (
+            f"{project.freelancer_id}: Score {project.overall_score}, "
+            f"ARBITRAGE {project.is_arbitrage}, Entwurf {hat_entwurf}"
+        )
+
     for freelancer_id in SCHLECHTE_PROJEKTE:
         assert projects[freelancer_id].proposal_draft is None
+
+
+def test_erzeugte_entwuerfe_sind_brauchbar(demo_run):
+    _, projects, _ = demo_run
+    entwuerfe = [p for p in projects.values() if p.proposal_draft]
+    assert entwuerfe, "Es muss mindestens einen Entwurf geben"
+    for project in entwuerfe:
+        assert len(project.proposal_draft) > 200
 
 
 def test_bewerbungsentwuerfe_enthalten_keine_floskeln(demo_run):
@@ -182,10 +200,14 @@ def test_bewerbungsentwuerfe_enthalten_keine_floskeln(demo_run):
         "i hope you are well",
         "best fit for this job",
     ]
-    for freelancer_id in GUTE_PROJEKTE:
-        entwurf = projects[freelancer_id].proposal_draft.lower()
+    entwuerfe = [p for p in projects.values() if p.proposal_draft]
+    assert entwuerfe
+    for project in entwuerfe:
+        entwurf = project.proposal_draft.lower()
         for floskel in floskeln:
-            assert floskel not in entwurf, f"{freelancer_id} enthaelt '{floskel}'"
+            assert floskel not in entwurf, (
+                f"{project.freelancer_id} enthaelt '{floskel}'"
+            )
 
 
 def test_gebotsempfehlung_und_aufwand_sind_gesetzt(demo_run):
