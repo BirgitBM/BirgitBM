@@ -214,3 +214,89 @@ export function Hinweis({
     </div>
   );
 }
+
+/* --------------------------- Bearbeitbarer Text ----------------------- */
+
+/**
+ * Textfeld, das wie normaler Text aussieht und mit dem Inhalt mitwächst.
+ *
+ * Aufbau: Rahmen und Hintergrund liegen auf dem umschließenden Element, das
+ * Eingabefeld selbst ist durchsichtig. Dadurch kollidieren keine Farbklassen.
+ * Die Höhe bestimmt eine unsichtbare Kopie des Textes in derselben Rasterzelle –
+ * so entsteht keine Bildlaufleiste und keine feste Zeilenzahl.
+ *
+ * `rahmen` bestimmt Hintergrund und Randfarbe, `textKlassen` Schrift und
+ * Innenabstand. Beide ersetzen die Vorgabe vollständig.
+ */
+export function AutoTextarea({
+  wert,
+  onChange,
+  label,
+  placeholder,
+  rahmen = "bg-transparent ring-transparent",
+  textKlassen = "px-3 py-2",
+}: {
+  wert: string;
+  onChange: (neu: string) => void;
+  label: string;
+  placeholder?: string;
+  rahmen?: string;
+  textKlassen?: string;
+}) {
+  const inhalt = cx(
+    "w-full whitespace-pre-wrap break-words text-sm [grid-area:1/1]",
+    textKlassen,
+  );
+  return (
+    <div
+      className={cx(
+        "grid rounded-xl ring-1 ring-inset transition",
+        "hover:ring-slate-300 focus-within:ring-2 focus-within:ring-marke-600",
+        rahmen,
+      )}
+    >
+      {/* Unsichtbare Kopie: gibt die Höhe vor. Das Leerzeichen hält die letzte
+          Zeile offen, damit der Cursor am Ende nicht abgeschnitten wird. */}
+      <span aria-hidden className={cx(inhalt, "invisible")}>
+        {wert + " "}
+      </span>
+      <textarea
+        value={wert}
+        aria-label={label}
+        placeholder={placeholder}
+        onChange={(event) => onChange(event.target.value)}
+        className={cx(inhalt, "resize-none overflow-hidden bg-transparent outline-none")}
+      />
+    </div>
+  );
+}
+
+/** Einzeiliges Feld im gleichen Stil – für Zeitangaben im Textoverlay. */
+export function AutoInput({
+  wert,
+  onChange,
+  label,
+  placeholder,
+  textKlassen = "px-2 py-1",
+}: {
+  wert: string;
+  onChange: (neu: string) => void;
+  label: string;
+  placeholder?: string;
+  textKlassen?: string;
+}) {
+  return (
+    <input
+      value={wert}
+      aria-label={label}
+      placeholder={placeholder}
+      onChange={(event) => onChange(event.target.value)}
+      className={cx(
+        "w-full rounded-lg bg-transparent outline-none",
+        "ring-1 ring-inset ring-transparent transition",
+        "hover:ring-slate-300 focus:ring-2 focus:ring-marke-600",
+        textKlassen,
+      )}
+    />
+  );
+}

@@ -99,6 +99,26 @@ Kosten: Für internes Testen reicht der kostenlose Hobby-Tarif. Sobald Kundinnen
 Zugang bekommen, ist der Pro-Tarif nötig (Stand heute rund 20 $ pro Monat und
 Nutzer). Das besprechen wir vorher.
 
+## Texte selbst ändern
+
+Jede Reel-Karte ist direkt bearbeitbar – in „Content erstellen" und in der
+Content-Bibliothek. Anklicken, tippen, fertig. Änderbar sind:
+
+- Thema (die Überschrift der Karte)
+- Hook
+- B-Roll-Hinweis
+- Textoverlay: Zeitangabe und Text je Zeile, Zeilen hinzufügen und entfernen
+- Caption
+- Call-to-Action
+
+Solange etwas offen ist, steht rechts unten „Nicht gespeicherte Änderungen".
+Erst „Speichern" schreibt den Stand fest.
+
+Die Knöpfe „Anderer Hook" und „Andere Caption" holen weiterhin einen
+Formulierungsvorschlag. Achtung: Sie **überschreiben** deinen getippten Text.
+
+Für Kundenrollen ist die Karte reine Anzeige – dort lässt sich nichts ändern.
+
 ## Wichtig zu wissen
 
 - **Alle Daten sind Beispieldaten.** Es besteht keine Verbindung zu Instagram.

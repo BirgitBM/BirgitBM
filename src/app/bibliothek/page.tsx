@@ -37,7 +37,14 @@ export default function BibliothekSeite() {
   const [art, setArt] = useState(ALLE);
   const [status, setStatus] = useState(ALLE);
   const [ausgewaehlt, setAusgewaehlt] = useState<ContentItem | null>(null);
+  const [ungespeichert, setUngespeichert] = useState(false);
   const [kopiert, setKopiert] = useState(false);
+
+  /** Wechsel der Auswahl verwirft nichts still: erst speichern, dann wechseln. */
+  function auswaehlen(item: ContentItem) {
+    setAusgewaehlt(item);
+    setUngespeichert(false);
+  }
 
   const produkte = useMemo(() => {
     const ausInhalten = contentAlleMarken
@@ -215,7 +222,7 @@ export default function BibliothekSeite() {
                     {gefiltert.map((eintrag) => (
                       <tr
                         key={eintrag.id}
-                        onClick={() => setAusgewaehlt(eintrag)}
+                        onClick={() => auswaehlen(eintrag)}
                         className={cx(
                           "cursor-pointer transition hover:bg-slate-50",
                           ausgewaehlt?.id === eintrag.id && "bg-marke-50/50",
@@ -261,7 +268,10 @@ export default function BibliothekSeite() {
             <h2 className="text-sm font-semibold text-slate-900">Vorschau</h2>
             <button
               type="button"
-              onClick={() => setAusgewaehlt(null)}
+              onClick={() => {
+                setAusgewaehlt(null);
+                setUngespeichert(false);
+              }}
               className="text-xs font-medium text-slate-500 hover:text-slate-800"
             >
               Vorschau schließen
@@ -270,8 +280,28 @@ export default function BibliothekSeite() {
           <ReelKarte
             item={ausgewaehlt}
             broll={broll}
+            onChange={
+              rechte.darfInhalteErstellen
+                ? (neu) => {
+                    setAusgewaehlt(neu);
+                    setUngespeichert(true);
+                  }
+                : undefined
+            }
             aktionen={
               <>
+                {rechte.darfInhalteErstellen && (
+                  <Button
+                    variante="primaer"
+                    disabled={!ungespeichert}
+                    onClick={() => {
+                      contentSpeichern(ausgewaehlt);
+                      setUngespeichert(false);
+                    }}
+                  >
+                    Änderungen speichern
+                  </Button>
+                )}
                 {rechte.darfCaptionKopieren && (
                   <Button onClick={() => captionKopieren(ausgewaehlt)}>
                     <IconKopieren className="h-4 w-4" />
@@ -290,7 +320,6 @@ export default function BibliothekSeite() {
                 )}
                 {rechte.darfFreigeben && ausgewaehlt.status !== "freigegeben" && (
                   <Button
-                    variante="primaer"
                     onClick={() => {
                       const aktualisiert: ContentItem = {
                         ...ausgewaehlt,
@@ -300,10 +329,16 @@ export default function BibliothekSeite() {
                       };
                       contentSpeichern(aktualisiert);
                       setAusgewaehlt(aktualisiert);
+                      setUngespeichert(false);
                     }}
                   >
                     Freigeben
                   </Button>
+                )}
+                {ungespeichert && (
+                  <span className="ml-auto text-xs font-medium text-amber-700">
+                    Nicht gespeicherte Änderungen
+                  </span>
                 )}
               </>
             }

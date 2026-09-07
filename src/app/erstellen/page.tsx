@@ -39,6 +39,8 @@ export default function ErstellenSeite() {
   const [hookVariante, setHookVariante] = useState(0);
   const [captionVariante, setCaptionVariante] = useState(0);
   const [meldung, setMeldung] = useState<string | null>(null);
+  /** true, sobald der Entwurf seit dem letzten Speichern verändert wurde. */
+  const [ungespeichert, setUngespeichert] = useState(false);
 
   const eingabe: GeneratorEingabe = {
     brandId: markeId,
@@ -54,6 +56,14 @@ export default function ErstellenSeite() {
     setHookVariante(0);
     setCaptionVariante(0);
     setMeldung(null);
+    setUngespeichert(true);
+  }
+
+  /** Übernimmt eine Änderung, die direkt in der Karte getippt wurde. */
+  function entwurfAendern(neu: ContentItem) {
+    setEntwurf(neu);
+    setUngespeichert(true);
+    setMeldung(null);
   }
 
   function hookAendern() {
@@ -61,6 +71,7 @@ export default function ErstellenSeite() {
     const naechste = hookVariante + 1;
     const neuerHook = hookErzeugen(eingabe, naechste);
     setHookVariante(naechste);
+    setUngespeichert(true);
     setEntwurf({
       ...entwurf,
       hook: neuerHook,
@@ -75,6 +86,7 @@ export default function ErstellenSeite() {
     if (!entwurf) return;
     const naechste = captionVariante + 1;
     setCaptionVariante(naechste);
+    setUngespeichert(true);
     setEntwurf({
       ...entwurf,
       caption: captionErzeugen(eingabe, naechste),
@@ -92,6 +104,7 @@ export default function ErstellenSeite() {
     };
     setEntwurf(freigegeben);
     contentSpeichern(freigegeben);
+    setUngespeichert(false);
     setMeldung(
       "Freigegeben und gespeichert. Der Inhalt ist damit auch für spätere Kundenzugänge sichtbar.",
     );
@@ -102,6 +115,7 @@ export default function ErstellenSeite() {
     const gespeichert = { ...entwurf, updatedAt: new Date().toISOString() };
     setEntwurf(gespeichert);
     contentSpeichern(gespeichert);
+    setUngespeichert(false);
     setMeldung("In der Content-Bibliothek gespeichert.");
   }
 
@@ -235,20 +249,31 @@ export default function ErstellenSeite() {
             <ReelKarte
               item={entwurf}
               broll={broll}
+              onChange={entwurfAendern}
               aktionen={
                 <>
                   <Button
                     variante="primaer"
-                    onClick={freigeben}
-                    disabled={!rechte.darfFreigeben}
+                    onClick={speichern}
+                    disabled={!ungespeichert}
                   >
-                    Freigeben
-                  </Button>
-                  <Button onClick={hookAendern}>Hook ändern</Button>
-                  <Button onClick={captionNeu}>Caption neu schreiben</Button>
-                  <Button variante="dezent" onClick={speichern}>
                     Speichern
                   </Button>
+                  <Button onClick={freigeben} disabled={!rechte.darfFreigeben}>
+                    Freigeben
+                  </Button>
+                  <span className="mx-1 hidden h-6 w-px bg-slate-200 sm:block" />
+                  <Button variante="dezent" onClick={hookAendern}>
+                    Anderer Hook
+                  </Button>
+                  <Button variante="dezent" onClick={captionNeu}>
+                    Andere Caption
+                  </Button>
+                  {ungespeichert && (
+                    <span className="ml-auto text-xs font-medium text-amber-700">
+                      Nicht gespeicherte Änderungen
+                    </span>
+                  )}
                 </>
               }
             />
@@ -261,7 +286,8 @@ export default function ErstellenSeite() {
                 <p className="mx-auto mt-2 max-w-sm text-sm text-slate-500">
                   Fülle links die Vorgaben aus und klicke auf „Reel erstellen“.
                   Die Karte erscheint dann hier – mit Hook, B-Roll-Empfehlung,
-                  Textoverlay, Caption und CTA.
+                  Textoverlay, Caption und CTA. Alle Texte kannst du danach
+                  direkt in der Karte überschreiben.
                 </p>
               </CardBody>
             </Card>
