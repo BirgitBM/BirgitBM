@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+import { useStore } from "@/lib/store";
+import { UserRole } from "@/lib/types";
 
 const authRequired = process.env.NEXT_PUBLIC_REQUIRE_AUTH === "true";
 
@@ -17,8 +19,15 @@ const nav = [
   { href: "/markenwissen", label: "Markenwissen" },
 ];
 
+const rollen: { wert: UserRole; label: string }[] = [
+  { wert: "admin", label: "Admin" },
+  { wert: "studio-kunde", label: "Studio-Kunde" },
+  { wert: "premium-kunde", label: "Premium-Kunde" },
+];
+
 export function Sidebar() {
   const pathname = usePathname();
+  const { rolle, setRolle } = useStore();
 
   return (
     <aside className="hidden md:flex w-64 shrink-0 flex-col bg-charcoal text-ivory min-h-screen sticky top-0">
@@ -44,8 +53,24 @@ export function Sidebar() {
           );
         })}
       </nav>
-      <div className="px-6 py-5 text-xs text-taupe border-t border-white/10 space-y-2">
-        <div>Version 1</div>
+      <div className="px-6 py-5 text-xs text-taupe border-t border-white/10 space-y-3">
+        <div>
+          <label className="block mb-1.5 uppercase tracking-wide">Ansicht testen als</label>
+          <select
+            value={rolle}
+            onChange={(e) => setRolle(e.target.value as UserRole)}
+            className="w-full rounded-md bg-white/10 px-2 py-1.5 text-ivory text-xs border border-white/10 focus:outline-none focus:ring-2 focus:ring-gold/50"
+          >
+            {rollen.map((r) => (
+              <option key={r.wert} value={r.wert} className="text-charcoal">
+                {r.label}
+              </option>
+            ))}
+          </select>
+          <p className="mt-1.5 leading-relaxed">
+            Kunden sehen nur freigegebene Inhalte und können eigene Clips zuordnen.
+          </p>
+        </div>
         {authRequired && (
           <button
             onClick={() => supabase.auth.signOut()}

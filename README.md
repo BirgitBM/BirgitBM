@@ -72,6 +72,66 @@ Studio-/Premium-Kunden (nur „eingeloggt ja/nein" wird unterschieden). Die
 Datenfelder dafür (`UserRole`, `freigegebenFuerKunden`) sind vorbereitet,
 siehe Hinweis am Ende von `supabase/schema_auth.sql`.
 
+## 3b. Datenbank aktualisieren (Migration 002)
+
+Nach diesem Update **einmalig** im Supabase-Dashboard unter „SQL Editor"
+ausführen:
+
+```
+supabase/migration_002_broll_und_planung.sql
+```
+
+Die Migration ist mehrfach ausführbar und verändert keine vorhandenen Daten.
+Sie ergänzt:
+
+| Tabelle | Neu |
+| --- | --- |
+| `broll` | `besitzer` (marke/kunde), `besitzer_user_id`, `dauer_sekunden`, `vorschau_farbe` |
+| `reels` | `broll_ids` (mehrere Clips statt einer Textempfehlung), `geaendert_am` |
+| `broll_zuordnungen` | **neue Tabelle** – persönliche Clip-Auswahl je Kundin |
+| `wochenplan` | `kalenderwoche`, `uhrzeit` |
+| `markenwissen` | `woerter_vermeiden`, `kernbotschaften`, `standard_ctas` |
+
+Bestehende Reels behalten ihre Clip-Zuordnung: Die Migration liest die Kennung
+aus dem Empfehlungstext („B003 – Ampulle in der Hand" wird zu `{B003}`).
+Bestehende Wochenplan-Einträge werden der laufenden Kalenderwoche zugeordnet.
+
+Läuft bereits `schema_auth.sql` (Login erforderlich), zusätzlich ausführen:
+
+```
+supabase/migration_002_broll_und_planung_auth.sql
+```
+
+### Warum B-Roll eine eigene Tabelle braucht
+
+Das Abo-Modell lautet: **der Inhalt gehört der Marke, die Bilder gehören der
+Kundin.** Mehrere Kundinnen verwenden dasselbe Reel-Skript, aber jede mit
+ihren eigenen Clips. Läge die Clip-Auswahl im Reel selbst, würde die Auswahl
+einer Kundin die einer anderen überschreiben. Deshalb liegt sie getrennt in
+`broll_zuordnungen`.
+
+Zum Ausprobieren: links unten in der Navigation die Rolle auf „Studio-Kunde"
+stellen, Clips tauschen, zurück auf „Admin" wechseln – das Original bleibt
+unverändert.
+
+## 3c. Was seit dem Update neu ist
+
+- **Alle Texte der Reel-Karte sind direkt bearbeitbar** – Thema, Hook,
+  B-Roll-Hinweis, Textoverlay (Zeit und Text je Zeile, Zeilen hinzufügen und
+  entfernen), Caption und CTA. Jede Änderung geht sofort nach Supabase.
+- **B-Roll verwalten** – Clips anlegen, bearbeiten, löschen; Kennung wird
+  fortgezählt; eigene Clips von Kundinnen sind gekennzeichnet.
+- **Clips je Reel zuordnen** – mehrere Clips pro Reel, einzeln entfernbar.
+- **Duplizieren, Löschen, „Alles kopieren"** in der Content-Bibliothek.
+- **Filter** zusätzlich nach Produkt und Content-Art.
+- **Wochenplan über mehrere Wochen** – vor- und zurückblättern, einzelne
+  Beiträge anlegen, auf andere Tage verschieben und entfernen.
+- **Warnung bei heiklen Formulierungen** – Wörter aus `woerter_vermeiden`
+  werden in jeder Reel-Karte geprüft. Einfacher Wortabgleich, **keine**
+  rechtliche Prüfung.
+- **Markenwissen ist bearbeitbar**, inklusive Verbotsliste.
+- **Rollenumschalter** in der Navigation zum Testen der Kundenansicht.
+
 ## 4. Wie du später Änderungen vornehmen lässt
 
 Sag mir in einem neuen Chat, was sich ändern soll. Ich passe die

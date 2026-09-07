@@ -42,16 +42,25 @@ export interface ReelCard {
   thema: string;
   produkt?: string;
   hook: string;
+  // Freitext-Hinweis zur Bildsprache.
   brollEmpfehlung: string;
+  // Konkret zugeordnete Clips aus der B-Roll-Bibliothek.
+  brollIds: string[];
   textOverlays: TextOverlay[];
   caption: string;
   cta: string;
   status: ContentStatus;
   contentArt: ContentArt;
   erstelltAm: string; // ISO-Datum
+  geaendertAm: string; // ISO-Zeitstempel
   // Steuert, ob ein Inhalt später für Kunden-Logins sichtbar wäre.
   freigegebenFuerKunden: boolean;
 }
+
+// Wem gehört ein Clip?
+//   "marke" – gehört SQT, alle sehen ihn
+//   "kunde" – gehört einer einzelnen Kundin, nur sie sieht ihn
+export type BRollBesitzer = "marke" | "kunde";
 
 export interface BRollClip {
   id: string;
@@ -60,11 +69,30 @@ export interface BRollClip {
   tags: string[];
   produkt?: string;
   kategorie: string;
+  besitzer: BRollBesitzer;
+  besitzerUserId?: string;
+  dauerSekunden: number;
+  vorschauFarbe: string;
+}
+
+// Persönliche Clip-Auswahl einer Kundin zu einem geteilten Reel.
+// Liegt bewusst getrennt vom Reel: der Inhalt gehört der Marke, die
+// Bebilderung der Kundin. Sonst würde die Auswahl der einen Kundin die
+// der anderen überschreiben.
+export interface BRollZuordnung {
+  id: string;
+  userId: string;
+  reelId: string;
+  brollIds: string[];
+  geaendertAm: string;
 }
 
 export interface WochenplanEintrag {
   id: string;
-  tag: string; // "Montag" ... "Freitag"
+  // ISO-Kalenderwoche im Format 2026-W37
+  kalenderwoche: string;
+  tag: string; // "Montag" ... "Sonntag"
+  uhrzeit: string; // "18:00"
   thema: string;
   ziel: ContentZiel;
   status: ContentStatus;
@@ -96,4 +124,8 @@ export interface MarkeninfoEintrag {
   zielgruppe: string;
   tonalitaet: string;
   produkte: string[];
+  // Grundlage der Warnung vor heiklen Formulierungen.
+  woerterVermeiden: string[];
+  kernbotschaften: string[];
+  standardCtas: string[];
 }

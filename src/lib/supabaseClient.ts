@@ -10,4 +10,21 @@ if (!supabaseUrl || !supabaseKey) {
   );
 }
 
-export const supabase = createClient(supabaseUrl ?? "", supabaseKey ?? "");
+// Platzhalter-Adresse, falls die Umgebungsvariablen fehlen.
+//
+// Grund: createClient("") wirft sofort einen Fehler und lässt damit den
+// gesamten Build abbrechen – mit der wenig hilfreichen Meldung
+// "supabaseUrl is required". Mit einer gültigen Platzhalter-Adresse läuft der
+// Build durch, und der Fehler erscheint dort, wo er hingehört: als Meldung
+// in der Anwendung ("Verbindung zu Supabase fehlgeschlagen"), sobald Daten
+// geladen werden sollen.
+const PLATZHALTER_URL = "https://platzhalter.supabase.co";
+
+export const supabase = createClient(
+  supabaseUrl || PLATZHALTER_URL,
+  supabaseKey || "platzhalter-key"
+);
+
+// Damit die Oberfläche unterscheiden kann zwischen "nicht eingerichtet"
+// und "eingerichtet, aber Abfrage fehlgeschlagen".
+export const supabaseKonfiguriert = Boolean(supabaseUrl && supabaseKey);

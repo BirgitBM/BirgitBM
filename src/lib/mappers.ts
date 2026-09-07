@@ -1,6 +1,7 @@
 import {
   BeobachteterAccount,
   BRollClip,
+  BRollZuordnung,
   MarkeninfoEintrag,
   ReelCard,
   WochenplanEintrag,
@@ -22,12 +23,14 @@ export function dbToReel(row: Record<string, unknown>): ReelCard {
     produkt: (row.produkt as string) ?? undefined,
     hook: row.hook as string,
     brollEmpfehlung: row.broll_empfehlung as string,
+    brollIds: (row.broll_ids as string[]) ?? [],
     textOverlays: (row.text_overlays as ReelCard["textOverlays"]) ?? [],
     caption: row.caption as string,
     cta: row.cta as string,
     status: row.status as ReelCard["status"],
     contentArt: row.content_art as ReelCard["contentArt"],
     erstelltAm: row.erstellt_am as string,
+    geaendertAm: (row.geaendert_am as string) ?? (row.erstellt_am as string),
     freigegebenFuerKunden: Boolean(row.freigegeben_fuer_kunden),
   };
 }
@@ -42,12 +45,14 @@ export function reelToDb(reel: ReelCard) {
     produkt: reel.produkt ?? null,
     hook: reel.hook,
     broll_empfehlung: reel.brollEmpfehlung,
+    broll_ids: reel.brollIds,
     text_overlays: reel.textOverlays,
     caption: reel.caption,
     cta: reel.cta,
     status: reel.status,
     content_art: reel.contentArt,
     erstellt_am: reel.erstelltAm,
+    geaendert_am: reel.geaendertAm,
     freigegeben_fuer_kunden: reel.freigegebenFuerKunden,
   };
 }
@@ -62,6 +67,47 @@ export function dbToBroll(row: Record<string, unknown>): BRollClip {
     tags: (row.tags as string[]) ?? [],
     produkt: (row.produkt as string) ?? undefined,
     kategorie: row.kategorie as string,
+    besitzer: (row.besitzer as BRollClip["besitzer"]) ?? "marke",
+    besitzerUserId: (row.besitzer_user_id as string) ?? undefined,
+    dauerSekunden: (row.dauer_sekunden as number) ?? 8,
+    vorschauFarbe: (row.vorschau_farbe as string) ?? "#eee7dd",
+  };
+}
+
+export function brollToDb(clip: BRollClip) {
+  return {
+    id: clip.id,
+    titel: clip.titel,
+    beschreibung: clip.beschreibung,
+    tags: clip.tags,
+    produkt: clip.produkt ?? null,
+    kategorie: clip.kategorie,
+    besitzer: clip.besitzer,
+    besitzer_user_id: clip.besitzerUserId ?? null,
+    dauer_sekunden: clip.dauerSekunden,
+    vorschau_farbe: clip.vorschauFarbe,
+  };
+}
+
+// --- Persönliche B-Roll-Zuordnung ---
+
+export function dbToZuordnung(row: Record<string, unknown>): BRollZuordnung {
+  return {
+    id: row.id as string,
+    userId: row.user_id as string,
+    reelId: row.reel_id as string,
+    brollIds: (row.broll_ids as string[]) ?? [],
+    geaendertAm: row.geaendert_am as string,
+  };
+}
+
+export function zuordnungToDb(zuordnung: BRollZuordnung) {
+  return {
+    id: zuordnung.id,
+    user_id: zuordnung.userId,
+    reel_id: zuordnung.reelId,
+    broll_ids: zuordnung.brollIds,
+    geaendert_am: zuordnung.geaendertAm,
   };
 }
 
@@ -81,6 +127,8 @@ export function dbToAccount(row: Record<string, unknown>): BeobachteterAccount {
 export function dbToWochenplan(row: Record<string, unknown>): WochenplanEintrag {
   return {
     id: row.id as string,
+    kalenderwoche: row.kalenderwoche as string,
+    uhrzeit: (row.uhrzeit as string) ?? "12:00",
     tag: row.tag as string,
     thema: row.thema as string,
     ziel: row.ziel as WochenplanEintrag["ziel"],
@@ -93,6 +141,8 @@ export function dbToWochenplan(row: Record<string, unknown>): WochenplanEintrag 
 export function wochenplanToDb(eintrag: WochenplanEintrag) {
   return {
     id: eintrag.id,
+    kalenderwoche: eintrag.kalenderwoche,
+    uhrzeit: eintrag.uhrzeit,
     tag: eintrag.tag,
     thema: eintrag.thema,
     ziel: eintrag.ziel,
@@ -110,5 +160,20 @@ export function dbToMarkeninfo(row: Record<string, unknown>): MarkeninfoEintrag 
     zielgruppe: row.zielgruppe as string,
     tonalitaet: row.tonalitaet as string,
     produkte: (row.produkte as string[]) ?? [],
+    woerterVermeiden: (row.woerter_vermeiden as string[]) ?? [],
+    kernbotschaften: (row.kernbotschaften as string[]) ?? [],
+    standardCtas: (row.standard_ctas as string[]) ?? [],
+  };
+}
+
+export function markeninfoToDb(eintrag: MarkeninfoEintrag) {
+  return {
+    marke: eintrag.marke,
+    zielgruppe: eintrag.zielgruppe,
+    tonalitaet: eintrag.tonalitaet,
+    produkte: eintrag.produkte,
+    woerter_vermeiden: eintrag.woerterVermeiden,
+    kernbotschaften: eintrag.kernbotschaften,
+    standard_ctas: eintrag.standardCtas,
   };
 }

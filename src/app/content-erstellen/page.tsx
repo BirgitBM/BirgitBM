@@ -2,7 +2,9 @@
 
 import { useState } from "react";
 import { useStore } from "@/lib/store";
-import { Card, PageHeader, Button, StatusPill, Field, inputClass } from "@/components/ui";
+import { Card, PageHeader, Button, Field, inputClass, Hinweis } from "@/components/ui";
+import { ReelKarte } from "@/components/ReelKarte";
+import { reelAlsText } from "@/lib/reelText";
 import {
   ContentZiel,
   Marke,
@@ -38,8 +40,10 @@ function generiereReel(input: {
   ziel: ContentZiel;
   thema: string;
   produkt: string;
+  brollIds: string[];
 }): ReelCard {
   const id = `R${Math.random().toString(36).slice(2, 7).toUpperCase()}`;
+  const jetzt = new Date().toISOString();
   return {
     id,
     marke: input.marke,
@@ -48,7 +52,8 @@ function generiereReel(input: {
     thema: input.thema,
     produkt: input.produkt || undefined,
     hook: `${hookVorlagen[input.ziel]} ${input.thema.toLowerCase()}.`,
-    brollEmpfehlung: "B004 – Behandlungsvorbereitung",
+    brollEmpfehlung: "Ruhiger Einstieg, danach Detailaufnahme zum Kernpunkt.",
+    brollIds: input.brollIds,
     textOverlays: [
       { zeit: "0:00–0:03", text: input.thema },
       { zeit: "0:03–0:10", text: "So wirkt es in der Praxis" },
@@ -61,23 +66,59 @@ function generiereReel(input: {
         : "Mehr dazu im Profil",
     status: "Entwurf",
     contentArt: "Reel",
-    erstelltAm: new Date().toISOString().slice(0, 10),
+    erstelltAm: jetzt.slice(0, 10),
+    geaendertAm: jetzt,
     freigegebenFuerKunden: false,
   };
 }
 
 export default function ContentErstellenPage() {
-  const { addReel, updateReel, reels } = useStore();
+  const { addReel, updateReel, reels, broll, markenwissen } = useStore();
   const [marke, setMarke] = useState<Marke>("SQT B2B");
   const [zielgruppe, setZielgruppe] = useState<Zielgruppe>("Kosmetikerinnen");
   const [ziel, setZiel] = useState<ContentZiel>("Education");
   const [thema, setThema] = useState("");
   const [produkt, setProdukt] = useState("");
   const [aktuellesReel, setAktuellesReel] = useState<ReelCard | null>(null);
+  const [kopiert, setKopiert] = useState(false);
+
+  const warnWoerter =
+    markenwissen.find((m) => m.marke === (aktuellesReel?.marke ?? marke))?.woerterVermeiden ?? [];
+
+  // Jede Änderung geht direkt an Supabase; der Bildschirm zeigt sie sofort.
+  const aendern = (patch: Partial<ReelCard>) => {
+    if (!aktuellesReel) return;
+    setAktuellesReel({ ...aktuellesReel, ...patch });
+    updateReel(aktuellesReel.id, patch);
+  };
+
+  const kopieren = async () => {
+    if (!aktuellesReel) return;
+    const clips = broll.filter((c) => aktuellesReel.brollIds.includes(c.id));
+    try {
+      await navigator.clipboard.writeText(reelAlsText(aktuellesReel, clips));
+      setKopiert(true);
+      window.setTimeout(() => setKopiert(false), 2000);
+    } catch {
+      setKopiert(false);
+    }
+  };
 
   const erstellen = () => {
     if (!thema.trim()) return;
-    const reel = generiereReel({ marke, zielgruppe, ziel, thema: thema.trim(), produkt: produkt.trim() });
+    // Zwei passende Clips vorschlagen: bevorzugt zum Produkt, sonst die ersten.
+    const passend = broll.filter(
+      (c) => produkt.trim() && c.produkt?.toLowerCase() === produkt.trim().toLowerCase()
+    );
+    const vorschlag = (passend.length > 0 ? passend : broll).slice(0, 2).map((c) => c.id);
+    const reel = generiereReel({
+      marke,
+      zielgruppe,
+      ziel,
+      thema: thema.trim(),
+      produkt: produkt.trim(),
+      brollIds: vorschlag,
+    });
     addReel(reel);
     setAktuellesReel(reel);
   };
@@ -90,24 +131,17 @@ export default function ContentErstellenPage() {
       `Frage an dich: Machst du das bei ${aktuellesReel.thema.toLowerCase()} auch falsch?`,
     ];
     const neu = varianten[Math.floor(Math.random() * varianten.length)];
-    const patch = { hook: neu };
-    updateReel(aktuellesReel.id, patch);
-    setAktuellesReel({ ...aktuellesReel, ...patch });
+    aendern({ hook: neu });
   };
 
   const captionNeuSchreiben = () => {
     if (!aktuellesReel) return;
     const neu = `Ein genauerer Blick auf ${aktuellesReel.thema.toLowerCase()} – und warum es für ${aktuellesReel.zielgruppe === "Kosmetikerinnen" ? "deine Behandlungsergebnisse" : "deine Haut"} einen Unterschied macht.`;
-    const patch = { caption: neu };
-    updateReel(aktuellesReel.id, patch);
-    setAktuellesReel({ ...aktuellesReel, ...patch });
+    aendern({ caption: neu });
   };
 
   const freigeben = () => {
-    if (!aktuellesReel) return;
-    const patch = { status: "Freigegeben" as const };
-    updateReel(aktuellesReel.id, patch);
-    setAktuellesReel({ ...aktuellesReel, ...patch });
+    aendern({ status: "Freigegeben", freigegebenFuerKunden: true });
   };
 
   return (
@@ -154,52 +188,28 @@ export default function ContentErstellenPage() {
       </Card>
 
       {aktuellesReel && (
-        <Card>
-          <div className="flex items-start justify-between mb-4">
-            <div>
-              <div className="text-xs text-taupe">{aktuellesReel.marke} · {aktuellesReel.zielgruppe} · {aktuellesReel.ziel}</div>
-              <div className="font-display text-xl mt-1">{aktuellesReel.thema}</div>
-            </div>
-            <StatusPill status={aktuellesReel.status} />
-          </div>
-
-          <div className="space-y-4 text-sm">
-            <div>
-              <div className="font-medium text-taupe mb-1">Hook</div>
-              <p>{aktuellesReel.hook}</p>
-            </div>
-            <div>
-              <div className="font-medium text-taupe mb-1">B-Roll-Empfehlung</div>
-              <p>{aktuellesReel.brollEmpfehlung}</p>
-            </div>
-            <div>
-              <div className="font-medium text-taupe mb-1">Textoverlay</div>
-              <ul className="space-y-1">
-                {aktuellesReel.textOverlays.map((o, i) => (
-                  <li key={i} className="flex gap-3">
-                    <span className="text-taupe w-20 shrink-0">{o.zeit}</span>
-                    <span>{o.text}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <div>
-              <div className="font-medium text-taupe mb-1">Caption</div>
-              <p>{aktuellesReel.caption}</p>
-            </div>
-            <div>
-              <div className="font-medium text-taupe mb-1">CTA</div>
-              <p>{aktuellesReel.cta}</p>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap gap-3 mt-6 pt-5 border-t border-line">
-            <Button onClick={freigeben}>Freigeben</Button>
-            <Button variant="secondary" onClick={hookAendern}>Hook ändern</Button>
-            <Button variant="secondary" onClick={captionNeuSchreiben}>Caption neu schreiben</Button>
-            <Button variant="secondary" onClick={() => setAktuellesReel(null)}>Speichern &amp; schließen</Button>
-          </div>
-        </Card>
+        <div className="space-y-4">
+          {kopiert && <Hinweis>Der vollständige Text liegt in der Zwischenablage.</Hinweis>}
+          <ReelKarte
+            reel={aktuellesReel}
+            broll={broll}
+            warnWoerter={warnWoerter}
+            onChange={aendern}
+            onBrollChange={(brollIds) => aendern({ brollIds })}
+            onStatusChange={(status) => aendern({ status })}
+            aktionen={
+              <>
+                <Button onClick={freigeben}>Freigeben</Button>
+                <Button variant="secondary" onClick={kopieren}>
+                  {kopiert ? "Kopiert" : "Alles kopieren"}
+                </Button>
+                <Button variant="secondary" onClick={hookAendern}>Anderer Hook</Button>
+                <Button variant="secondary" onClick={captionNeuSchreiben}>Andere Caption</Button>
+                <Button variant="ghost" onClick={() => setAktuellesReel(null)}>Schliessen</Button>
+              </>
+            }
+          />
+        </div>
       )}
 
       {!aktuellesReel && reels.length > 0 && (
