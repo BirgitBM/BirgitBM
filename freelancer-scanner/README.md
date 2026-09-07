@@ -128,27 +128,41 @@ Fertig. Der Demo-Modus läuft ab jetzt.
 Freelancer.com bietet eine offizielle Schnittstelle an. Das Programm nutzt
 ausschließlich diese – es liest keine Webseiten aus.
 
-1. Melde dich mit deinem normalen Konto auf **https://developers.freelancer.com**
-   an.
-2. Lege dort eine Anwendung an („Create App" / „My Apps"). Als Name genügt etwas
-   wie „Projekt-Scanner". Es ist eine Anwendung für dich selbst, du
-   veröffentlichst nichts.
-3. Erzeuge dazu einen **OAuth-Access-Token**. Freelancer bietet eine
-   Sandbox-Umgebung an, in der du das gefahrlos ausprobieren kannst, bevor du
-   auf das echte Konto wechselst.
+**Wichtig:** Die Entwicklereinstellungen liegen auf `accounts.freelancer.com` –
+das ist eine **andere Adresse** als deine normalen Kontoeinstellungen, und sie
+ist von dort nicht verlinkt. Deshalb findet man sie nicht durch Suchen.
+
+1. Melde dich normal bei Freelancer.com an.
+2. Rufe direkt diese Adresse auf:
+   **https://accounts.freelancer.com/settings/develop**
+3. Dort findest du den Bereich für den Access-Token. Falls zuerst eine
+   Anwendung angelegt werden muss, geht das über
+   `https://accounts.freelancer.com/settings/create_app`.
 4. Kopiere den Token in die Datei `.env`:
 
 ```
 FREELANCER_OAUTH_TOKEN=dein_token_hier
 ```
 
-> **Hinweis, ehrlich gesagt:** Die genaue Führung durch diesen Schritt kann sich
-> bei Freelancer ändern. Falls du hier hängen bleibst, funktioniert das gesamte
-> System weiterhin im Demo-Modus – Dashboard, Bewertung und Entwürfe kannst du
-> also vollständig testen, bevor du dich mit dem Zugang beschäftigst.
+**Den Zugang testen, bevor du weitermachst:**
+
+```bash
+python check_freelancer.py
+```
+
+Das Skript stellt genau eine Suchanfrage und sagt dir im Klartext, ob der
+Token funktioniert – oder woran es liegt. Es speichert nichts, bewirbt sich
+nirgends und gibt den Token nie aus.
+
+> **Sicherheit:** Gib den Token niemals weiter, auch nicht in einem Chat. Wer
+> ihn hat, kann in deinem Namen auf dein Freelancer-Konto zugreifen. Er gehört
+> ausschließlich in die Datei `.env` auf deinem Rechner.
 >
-> Der Token läuft irgendwann ab. Wenn im Log `HTTP 401` erscheint, musst du
-> einen neuen erzeugen und in `.env` eintragen.
+> Der Token läuft irgendwann ab. Wenn `check_freelancer.py` oder das Log
+> `HTTP 401` meldet, hole dir auf derselben Seite einen neuen.
+>
+> Solange der Zugang nicht steht, funktioniert alles Übrige im Demo-Modus
+> weiter – Dashboard, Bewertung und Entwürfe kannst du vollständig testen.
 
 ---
 
@@ -514,7 +528,8 @@ ein Ausgabenlimit, bevor der Scanner dauerhaft im Hintergrund läuft.
 | `No module named 'anthropic'` | Paket fehlt | `pip install anthropic` |
 | `ANTHROPIC_API_KEY fehlt` | Schlüssel nicht eingetragen | `.env` prüfen |
 | `FREELANCER_OAUTH_TOKEN fehlt` | Token nicht eingetragen | `.env` prüfen oder `DEMO_MODE=true` |
-| `HTTP 401` bei Freelancer | Token abgelaufen | Neuen Token erzeugen |
+| `HTTP 401` bei Freelancer | Token abgelaufen oder unvollständig kopiert | `python check_freelancer.py` ausführen, dann neuen Token auf accounts.freelancer.com/settings/develop holen |
+| `HTTP 403` bei Freelancer | Token gültig, aber Berechtigung fehlt | Ausgabe von `check_freelancer.py` prüfen – dort steht die Meldung von Freelancer |
 | `Address already in use` | Port 8000 belegt | `uvicorn app.main:app --port 8001` |
 | Telegram meldet nichts | Bot nie angeschrieben | Bot in Telegram öffnen und „Start" drücken |
 | Keine Projekte gefunden | Alles schon bekannt oder nichts Neues da | Normal. Log prüfen: wie viele wurden vorgefiltert? |
@@ -554,7 +569,8 @@ freelancer-scanner/
 ├── .env                     Deine Zugangsdaten (nie hochladen!)
 ├── .env.example             Vorlage dafür
 ├── requirements.txt         Die benötigten Pakete
-└── run_scan.py              Einzelner Durchlauf ohne Dashboard
+├── run_scan.py              Einzelner Durchlauf ohne Dashboard
+└── check_freelancer.py      Prüft den Freelancer-Zugang im Klartext
 ```
 
 ### Der Ablauf in einem Durchgang
