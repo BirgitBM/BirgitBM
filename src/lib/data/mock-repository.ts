@@ -6,6 +6,8 @@ import { PLAN_ENTRIES } from "../mock/plan";
 import { BEOBACHTETE_ACCOUNTS } from "../mock/research";
 import type {
   BrandKnowledge,
+  BrollClip,
+  BrollZuordnung,
   ContentItem,
   PlanEntry,
   SavedHook,
@@ -30,6 +32,7 @@ export class MockRepository implements ContentRepository {
       accounts: structuredClone(BEOBACHTETE_ACCOUNTS),
       hooks: structuredClone(GESPEICHERTE_HOOKS),
       wissen: structuredClone(MARKENWISSEN),
+      zuordnungen: [],
     };
   }
 
@@ -48,13 +51,12 @@ export class MockRepository implements ContentRepository {
         const start = this.startbestand();
         this.bestand = {
           content: gespeichert.content ?? start.content,
-          // B-Roll kommt weiterhin aus den Mock-Daten, damit neue Beispielclips
-          // auch in bestehenden Browsern sichtbar werden.
-          broll: start.broll,
+          broll: gespeichert.broll ?? start.broll,
           plan: gespeichert.plan ?? start.plan,
           accounts: gespeichert.accounts ?? start.accounts,
           hooks: gespeichert.hooks ?? start.hooks,
           wissen: gespeichert.wissen ?? start.wissen,
+          zuordnungen: gespeichert.zuordnungen ?? start.zuordnungen,
         };
         return this.bestand;
       }
@@ -89,7 +91,36 @@ export class MockRepository implements ContentRepository {
       accounts: alles.accounts,
       hooks: alles.hooks,
       wissen: alles.wissen,
+      zuordnungen: alles.zuordnungen,
     };
+  }
+
+  async speichereBroll(clip: BrollClip): Promise<void> {
+    const alles = this.laden();
+    const index = alles.broll.findIndex((vorhanden) => vorhanden.id === clip.id);
+    if (index >= 0) alles.broll[index] = clip;
+    else alles.broll.unshift(clip);
+    this.sichern();
+  }
+
+  async loescheBroll(id: string): Promise<void> {
+    const alles = this.laden();
+    alles.broll = alles.broll.filter((clip) => clip.id !== id);
+    this.bestand = alles;
+    this.sichern();
+  }
+
+  async speichereZuordnung(zuordnung: BrollZuordnung): Promise<void> {
+    const alles = this.laden();
+    const index = alles.zuordnungen.findIndex(
+      (vorhanden) =>
+        vorhanden.userId === zuordnung.userId &&
+        vorhanden.contentId === zuordnung.contentId,
+    );
+    if (index >= 0) alles.zuordnungen[index] = zuordnung;
+    else alles.zuordnungen.push(zuordnung);
+    this.bestand = alles;
+    this.sichern();
   }
 
   async speichereContent(item: ContentItem): Promise<void> {

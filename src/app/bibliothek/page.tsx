@@ -21,14 +21,25 @@ import {
   STATUS_REIHENFOLGE,
   formatDatum,
 } from "@/lib/labels";
+import { contentAlsText } from "@/lib/export";
 import { useStore } from "@/lib/store";
-import type { ContentItem } from "@/lib/types";
+import type { ContentItem, ContentStatus } from "@/lib/types";
 
 const ALLE = "alle";
 
 export default function BibliothekSeite() {
-  const { contentAlleMarken, broll, marken, wissen, rechte, contentSpeichern } =
-    useStore();
+  const {
+    contentAlleMarken,
+    broll,
+    marken,
+    wissen,
+    rechte,
+    contentSpeichern,
+    contentLoeschen,
+    brollIdsFuer,
+    brollZuordnen,
+    benutzer,
+  } = useStore();
 
   const [suche, setSuche] = useState("");
   const [marke, setMarke] = useState(ALLE);
@@ -39,11 +50,49 @@ export default function BibliothekSeite() {
   const [ausgewaehlt, setAusgewaehlt] = useState<ContentItem | null>(null);
   const [ungespeichert, setUngespeichert] = useState(false);
   const [kopiert, setKopiert] = useState(false);
+  const [loeschAbfrage, setLoeschAbfrage] = useState(false);
 
   /** Wechsel der Auswahl verwirft nichts still: erst speichern, dann wechseln. */
   function auswaehlen(item: ContentItem) {
     setAusgewaehlt(item);
     setUngespeichert(false);
+    setLoeschAbfrage(false);
+  }
+
+  /** Legt eine Kopie an – nützlich, um dasselbe Thema für die andere
+      Zielgruppe oder eine weitere Marke zu variieren. */
+  function duplizieren(item: ContentItem) {
+    const jetzt = new Date().toISOString();
+    const kopie: ContentItem = {
+      ...item,
+      id: `content-${Date.now().toString(36)}`,
+      thema: `${item.thema} (Kopie)`,
+      status: "entwurf",
+      visibility: "intern",
+      createdAt: jetzt,
+      updatedAt: jetzt,
+    };
+    contentSpeichern(kopie);
+    setAusgewaehlt(kopie);
+    setUngespeichert(false);
+  }
+
+  function loeschen(item: ContentItem) {
+    contentLoeschen(item.id);
+    setAusgewaehlt(null);
+    setUngespeichert(false);
+    setLoeschAbfrage(false);
+  }
+
+  async function allesKopieren(item: ContentItem) {
+    const clips = broll.filter((clip) => brollIdsFuer(item).includes(clip.id));
+    try {
+      await navigator.clipboard.writeText(contentAlsText(item, clips));
+      setKopiert(true);
+      window.setTimeout(() => setKopiert(false), 2000);
+    } catch {
+      setKopiert(false);
+    }
   }
 
   const produkte = useMemo(() => {
@@ -81,16 +130,6 @@ export default function BibliothekSeite() {
     setZielgruppe(ALLE);
     setArt(ALLE);
     setStatus(ALLE);
-  }
-
-  async function captionKopieren(item: ContentItem) {
-    try {
-      await navigator.clipboard.writeText(`${item.caption}\n\n${item.cta}`);
-      setKopiert(true);
-      window.setTimeout(() => setKopiert(false), 2000);
-    } catch {
-      setKopiert(false);
-    }
   }
 
   const filterAktiv =
@@ -280,6 +319,35 @@ export default function BibliothekSeite() {
           <ReelKarte
             item={ausgewaehlt}
             broll={broll}
+            warnWoerter={wissen?.woerterVermeiden ?? []}
+            brollIds={brollIdsFuer(ausgewaehlt)}
+            onBrollChange={(brollIds) => {
+              brollZuordnen(ausgewaehlt, brollIds);
+              setAusgewaehlt(
+                rechte.darfInhalteErstellen
+                  ? { ...ausgewaehlt, brollIds }
+                  : ausgewaehlt,
+              );
+            }}
+            onStatusChange={
+              rechte.darfFreigeben
+                ? (status: ContentStatus) => {
+                    const aktualisiert: ContentItem = {
+                      ...ausgewaehlt,
+                      status,
+                      visibility:
+                        status === "freigegeben" ||
+                        status === "produziert" ||
+                        status === "veroeffentlicht"
+                          ? "kunde"
+                          : ausgewaehlt.visibility,
+                      updatedAt: new Date().toISOString(),
+                    };
+                    contentSpeichern(aktualisiert);
+                    setAusgewaehlt(aktualisiert);
+                  }
+                : undefined
+            }
             onChange={
               rechte.darfInhalteErstellen
                 ? (neu) => {
@@ -303,18 +371,33 @@ export default function BibliothekSeite() {
                   </Button>
                 )}
                 {rechte.darfCaptionKopieren && (
-                  <Button onClick={() => captionKopieren(ausgewaehlt)}>
+                  <Button onClick={() => allesKopieren(ausgewaehlt)}>
                     <IconKopieren className="h-4 w-4" />
-                    {kopiert ? "Kopiert" : "Caption kopieren"}
+                    {kopiert ? "Kopiert" : "Alles kopieren"}
                   </Button>
                 )}
-                {rechte.darfVideoHerunterladen && (
-                  <Button variante="dezent" disabled title="In Version 1 noch nicht verfügbar">
+                {rechte.darfInhalteErstellen && (
+                  <Button onClick={() => duplizieren(ausgewaehlt)}>
+                    Duplizieren
+                  </Button>
+                )}
+                {/* Nur in der Kundenansicht: zeigt, was der spätere Zugang
+                    können wird. In der Admin-Ansicht wäre es nur Ballast. */}
+                {benutzer.role !== "admin" && rechte.darfVideoHerunterladen && (
+                  <Button
+                    variante="dezent"
+                    disabled
+                    title="Kommt mit der Datenbank-Anbindung"
+                  >
                     Video herunterladen
                   </Button>
                 )}
-                {rechte.darfStoryHerunterladen && (
-                  <Button variante="dezent" disabled title="In Version 1 noch nicht verfügbar">
+                {benutzer.role !== "admin" && rechte.darfStoryHerunterladen && (
+                  <Button
+                    variante="dezent"
+                    disabled
+                    title="Kommt mit der Datenbank-Anbindung"
+                  >
                     Story herunterladen
                   </Button>
                 )}
@@ -335,6 +418,31 @@ export default function BibliothekSeite() {
                     Freigeben
                   </Button>
                 )}
+                {rechte.darfInhalteErstellen &&
+                  (loeschAbfrage ? (
+                    <span className="inline-flex items-center gap-2 text-xs text-slate-700">
+                      Wirklich löschen?
+                      <Button
+                        variante="gefahr"
+                        onClick={() => loeschen(ausgewaehlt)}
+                      >
+                        Ja, löschen
+                      </Button>
+                      <Button
+                        variante="dezent"
+                        onClick={() => setLoeschAbfrage(false)}
+                      >
+                        Abbrechen
+                      </Button>
+                    </span>
+                  ) : (
+                    <Button
+                      variante="gefahr"
+                      onClick={() => setLoeschAbfrage(true)}
+                    >
+                      Löschen
+                    </Button>
+                  ))}
                 {ungespeichert && (
                   <span className="ml-auto text-xs font-medium text-amber-700">
                     Nicht gespeicherte Änderungen

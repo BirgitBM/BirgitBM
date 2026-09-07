@@ -1,6 +1,7 @@
 import type {
   BrandKnowledge,
   BrollClip,
+  BrollZuordnung,
   ContentItem,
   PlanEntry,
   SavedHook,
@@ -21,6 +22,10 @@ export interface ContentRepository {
   ladeAlles(): Promise<DatenBestand>;
   speichereContent(item: ContentItem): Promise<void>;
   loescheContent(id: string): Promise<void>;
+  speichereBroll(clip: BrollClip): Promise<void>;
+  loescheBroll(id: string): Promise<void>;
+  /** Persönliche Clip-Auswahl einer Kundin – ändert den Inhalt selbst nicht. */
+  speichereZuordnung(zuordnung: BrollZuordnung): Promise<void>;
   speicherePlan(eintraege: PlanEntry[]): Promise<void>;
   speichereAccounts(accounts: WatchedAccount[]): Promise<void>;
   speichereHooks(hooks: SavedHook[]): Promise<void>;
@@ -34,4 +39,5 @@ export interface DatenBestand {
   accounts: WatchedAccount[];
   hooks: SavedHook[];
   wissen: BrandKnowledge[];
+  zuordnungen: BrollZuordnung[];
 }

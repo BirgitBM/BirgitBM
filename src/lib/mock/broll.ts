@@ -4,6 +4,7 @@ export const BROLL_CLIPS: BrollClip[] = [
   {
     id: "broll-b001",
     brandId: "sqt-b2b",
+    besitzer: "marke",
     code: "B001",
     titel: "Radiance Set auf Behandlungstisch",
     beschreibung:
@@ -18,6 +19,7 @@ export const BROLL_CLIPS: BrollClip[] = [
   {
     id: "broll-b002",
     brandId: "sqt-b2b",
+    besitzer: "marke",
     code: "B002",
     titel: "Refine Verpackung öffnen",
     beschreibung:
@@ -32,6 +34,7 @@ export const BROLL_CLIPS: BrollClip[] = [
   {
     id: "broll-b003",
     brandId: "sqt-b2b",
+    besitzer: "marke",
     code: "B003",
     titel: "Ampulle in der Hand",
     beschreibung:
@@ -46,6 +49,7 @@ export const BROLL_CLIPS: BrollClip[] = [
   {
     id: "broll-b004",
     brandId: "sqt-b2b",
+    besitzer: "marke",
     code: "B004",
     titel: "Behandlungsvorbereitung",
     beschreibung:
@@ -59,6 +63,7 @@ export const BROLL_CLIPS: BrollClip[] = [
   {
     id: "broll-b005",
     brandId: "sqt-b2b",
+    besitzer: "marke",
     code: "B005",
     titel: "Produktregal",
     beschreibung:
@@ -72,6 +77,7 @@ export const BROLL_CLIPS: BrollClip[] = [
   {
     id: "broll-b006",
     brandId: "sqt-b2b",
+    besitzer: "marke",
     code: "B006",
     titel: "Auftragen der Maske",
     beschreibung:
@@ -86,6 +92,7 @@ export const BROLL_CLIPS: BrollClip[] = [
   {
     id: "broll-b007",
     brandId: "sqt-b2b",
+    besitzer: "marke",
     code: "B007",
     titel: "Beratungsgespräch am Tresen",
     beschreibung:
@@ -99,6 +106,7 @@ export const BROLL_CLIPS: BrollClip[] = [
   {
     id: "broll-b008",
     brandId: "sqt-b2b",
+    besitzer: "marke",
     code: "B008",
     titel: "Textur auf Handrücken",
     beschreibung:

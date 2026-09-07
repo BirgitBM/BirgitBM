@@ -16,6 +16,7 @@ import type {
   AppUser,
   BrandKnowledge,
   BrollClip,
+  BrollZuordnung,
   ContentItem,
   PlanEntry,
   SavedHook,
@@ -45,6 +46,12 @@ interface StoreWert {
 
   contentSpeichern: (item: ContentItem) => void;
   contentLoeschen: (id: string) => void;
+  brollSpeichern: (clip: BrollClip) => void;
+  brollLoeschen: (id: string) => void;
+  /** Welche Clips gelten für diesen Inhalt – je nach Rolle eigene oder die der Marke. */
+  brollIdsFuer: (item: ContentItem) => string[];
+  /** Clips zuordnen. Als Kundin wird eine eigene Zuordnung gespeichert. */
+  brollZuordnen: (item: ContentItem, brollIds: string[]) => void;
   planSetzen: (eintraege: PlanEntry[]) => void;
   accountsSetzen: (accounts: WatchedAccount[]) => void;
   hooksSetzen: (hooks: SavedHook[]) => void;
@@ -65,6 +72,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [accounts, setAccounts] = useState<WatchedAccount[]>([]);
   const [hooks, setHooks] = useState<SavedHook[]>([]);
   const [wissenListe, setWissenListe] = useState<BrandKnowledge[]>([]);
+  const [zuordnungen, setZuordnungen] = useState<BrollZuordnung[]>([]);
 
   // Einmaliges Laden des Gesamtbestands. Die Filterung nach Marke passiert
   // unten im Speicher – so bleibt der Markenwechsel ohne Ladezeit.
@@ -78,6 +86,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       setAccounts(bestand.accounts);
       setHooks(bestand.hooks);
       setWissenListe(bestand.wissen);
+      setZuordnungen(bestand.zuordnungen);
       setBereit(true);
     });
     return () => {
@@ -104,6 +113,24 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   /** Ersetzt den Plan der aktiven Marke; andere Marken bleiben unberührt. */
+  const brollSpeichern = useCallback((clip: BrollClip) => {
+    setBroll((bisher) => {
+      const index = bisher.findIndex((vorhanden) => vorhanden.id === clip.id);
+      if (index >= 0) {
+        const kopie = [...bisher];
+        kopie[index] = clip;
+        return kopie;
+      }
+      return [clip, ...bisher];
+    });
+    void repository.speichereBroll(clip);
+  }, []);
+
+  const brollLoeschen = useCallback((id: string) => {
+    setBroll((bisher) => bisher.filter((clip) => clip.id !== id));
+    void repository.loescheBroll(id);
+  }, []);
+
   const planSetzen = useCallback(
     (eintraege: PlanEntry[]) => {
       setPlan((bisher) => [
@@ -143,6 +170,58 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     });
     void repository.speichereMarkenwissen(neu);
   }, []);
+
+  /**
+   * Kundinnen teilen sich denselben Inhalt, verwenden aber eigene Clips.
+   * Für sie zählt die persönliche Zuordnung, für Admins der Inhalt selbst.
+   */
+  const brollIdsFuer = useCallback(
+    (item: ContentItem) => {
+      if (benutzer.role === "admin") return item.brollIds;
+      const eigene = zuordnungen.find(
+        (eintrag) =>
+          eintrag.userId === benutzer.id && eintrag.contentId === item.id,
+      );
+      return eigene ? eigene.brollIds : item.brollIds;
+    },
+    [benutzer.id, benutzer.role, zuordnungen],
+  );
+
+  const brollZuordnen = useCallback(
+    (item: ContentItem, brollIds: string[]) => {
+      if (benutzer.role === "admin") {
+        const aktualisiert = {
+          ...item,
+          brollIds,
+          updatedAt: new Date().toISOString(),
+        };
+        setContent((bisher) =>
+          bisher.map((eintrag) =>
+            eintrag.id === item.id ? aktualisiert : eintrag,
+          ),
+        );
+        void repository.speichereContent(aktualisiert);
+        return;
+      }
+      const zuordnung: BrollZuordnung = {
+        id: `zuordnung-${benutzer.id}-${item.id}`,
+        userId: benutzer.id,
+        contentId: item.id,
+        brollIds,
+        updatedAt: new Date().toISOString(),
+      };
+      setZuordnungen((bisher) => [
+        ...bisher.filter(
+          (eintrag) =>
+            !(eintrag.userId === zuordnung.userId &&
+              eintrag.contentId === zuordnung.contentId),
+        ),
+        zuordnung,
+      ]);
+      void repository.speichereZuordnung(zuordnung);
+    },
+    [benutzer.id, benutzer.role],
+  );
 
   const rolleWechseln = useCallback((rolle: UserRole) => {
     setBenutzer((bisher) => ({ ...bisher, role: rolle }));
@@ -186,6 +265,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       wissen: wissenListe.find((eintrag) => eintrag.brandId === markeId),
       contentSpeichern,
       contentLoeschen,
+      brollSpeichern,
+      brollLoeschen,
+      brollIdsFuer,
+      brollZuordnen,
       planSetzen,
       accountsSetzen,
       hooksSetzen,
@@ -206,6 +289,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       wissenListe,
       contentSpeichern,
       contentLoeschen,
+      brollSpeichern,
+      brollLoeschen,
+      brollIdsFuer,
+      brollZuordnen,
       planSetzen,
       accountsSetzen,
       hooksSetzen,

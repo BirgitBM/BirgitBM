@@ -119,6 +119,35 @@ Formulierungsvorschlag. Achtung: Sie **überschreiben** deinen getippten Text.
 
 Für Kundenrollen ist die Karte reine Anzeige – dort lässt sich nichts ändern.
 
+## B-Roll verwalten und zuordnen
+
+In der B-Roll-Bibliothek legst du Clips selbst an, änderst und löschst sie.
+Die Kennung (B001, B002 …) wird automatisch fortgezählt.
+
+Auf jeder Reel-Karte lassen sich Clips einzeln zuordnen und wieder entfernen.
+
+**Wichtig für das spätere Abo-Modell:** Ein Inhalt gehört dir und wird von
+allen Kundinnen geteilt. Welche Clips eine Kundin dafür verwendet, ist ihre
+eigene Zuordnung – sie wird getrennt gespeichert und verändert dein Original
+nicht. Zum Ausprobieren: links unten die Rolle auf „Studio-Kunde" stellen,
+Clips tauschen, zurück auf „Admin" wechseln. Dein Stand bleibt unverändert.
+
+Das Hochladen echter Videodateien braucht Datenbank und Datei-Speicher und
+kommt mit dem Supabase-Schritt.
+
+## Weitere Funktionen
+
+- **Duplizieren** – dasselbe Thema für die andere Zielgruppe variieren
+- **Löschen** – mit Sicherheitsabfrage
+- **Alles kopieren** – Hook, B-Roll, Overlays, Caption und CTA als Text in die
+  Zwischenablage, zur Weitergabe an die Person, die das Reel produziert
+- **Status direkt auf der Karte** ändern
+- **Warnung bei heiklen Formulierungen** – Wörter aus der Verbotsliste im
+  Markenwissen werden über der Karte angezeigt. Das ist ein einfacher
+  Wortabgleich und ersetzt keine rechtliche Prüfung.
+- **Wochenplan über mehrere Wochen** – vor- und zurückblättern, einzelne
+  Beiträge anlegen, auf andere Tage verschieben und entfernen
+
 ## Wichtig zu wissen
 
 - **Alle Daten sind Beispieldaten.** Es besteht keine Verbindung zu Instagram.

@@ -26,7 +26,8 @@ Die Felder entsprechen 1:1 den Typen in `src/lib/types.ts`.
 | `profiles` | `id` (= `auth.users.id`), `name`, `email`, `role` |
 | `brand_members` | `brand_id`, `user_id` – wer sieht welche Marke |
 | `content_items` | `id`, `brand_id`, `format`, `audience`, `goal`, `thema`, `produkt`, `hook`, `broll_ids`, `overlays` (jsonb), `caption`, `cta`, `status`, `visibility`, `geplant_fuer`, `created_by`, `created_at`, `updated_at` |
-| `broll_clips` | `id`, `brand_id`, `code`, `titel`, `beschreibung`, `tags`, `produkt`, `kategorie`, `video_url`, `dauer_sekunden` |
+| `broll_clips` | `id`, `brand_id`, `besitzer` (`marke`/`kunde`), `besitzer_user_id`, `code`, `titel`, `beschreibung`, `tags`, `produkt`, `kategorie`, `video_url`, `dauer_sekunden` |
+| `broll_zuordnungen` | `id`, `user_id`, `content_id`, `broll_ids` – die persönliche Clip-Auswahl einer Kundin zu einem geteilten Inhalt |
 | `plan_entries` | `id`, `brand_id`, `kalenderwoche`, `tag`, `content_id`, `thema`, `goal`, `status`, `broll_ids`, `uhrzeit` |
 | `watched_accounts` | `id`, `handle`, `beschreibung`, `kategorie`, `follower`, `letzte_analyse` |
 | `saved_hooks` | `id`, `brand_id`, `text`, `quelle`, `gespeichert_am` |
@@ -55,6 +56,32 @@ using (
       and content_items.status in ('freigegeben', 'produziert', 'veroeffentlicht')
     )
   )
+);
+```
+
+## Warum B-Roll zwei Tabellen braucht
+
+Das Abo-Modell lautet: **Der Inhalt gehört der Marke, die Bilder gehören der
+Kundin.** Zehn Kundinnen verwenden dasselbe Reel-Skript, aber jede mit ihren
+eigenen Clips.
+
+Deshalb steht die Clip-Auswahl einer Kundin **nicht** im Inhalt selbst, sondern
+in `broll_zuordnungen`. Läge sie im Inhalt, würde die Auswahl der einen Kundin
+die der anderen überschreiben.
+
+`broll_clips.besitzer` trennt die Bestände: `marke` sieht jede Kundin,
+`kunde` sieht nur die Besitzerin.
+
+```sql
+-- Eigene Clips sind privat, Marken-Clips sehen alle mit Zugriff auf die Marke
+create policy "broll_sichtbarkeit"
+on broll_clips for select
+using (
+  (besitzer = 'marke' and exists (
+    select 1 from brand_members bm
+    where bm.brand_id = broll_clips.brand_id and bm.user_id = auth.uid()
+  ))
+  or (besitzer = 'kunde' and besitzer_user_id = auth.uid())
 );
 ```
 

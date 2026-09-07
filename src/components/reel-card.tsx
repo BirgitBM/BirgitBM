@@ -9,8 +9,20 @@ import {
   Tag,
   cx,
 } from "@/components/ui";
-import { AUDIENCE_LABELS, GOAL_LABELS, VISIBILITY_LABELS } from "@/lib/labels";
-import type { BrollClip, ContentItem, TextOverlay } from "@/lib/types";
+import {
+  AUDIENCE_LABELS,
+  GOAL_LABELS,
+  STATUS_LABELS,
+  STATUS_REIHENFOLGE,
+  VISIBILITY_LABELS,
+} from "@/lib/labels";
+import { gefundeneWarnwoerter } from "@/lib/export";
+import type {
+  BrollClip,
+  ContentItem,
+  ContentStatus,
+  TextOverlay,
+} from "@/lib/types";
 
 function Abschnitt({
   titel,
@@ -46,14 +58,30 @@ export function ReelKarte({
   broll,
   aktionen,
   onChange,
+  brollIds,
+  onBrollChange,
+  onStatusChange,
+  warnWoerter = [],
 }: {
   item: ContentItem;
   broll: BrollClip[];
   aktionen?: ReactNode;
   onChange?: (neu: ContentItem) => void;
+  /** Abweichende Clip-Auswahl (z. B. die persönliche einer Kundin). */
+  brollIds?: string[];
+  onBrollChange?: (brollIds: string[]) => void;
+  onStatusChange?: (status: ContentStatus) => void;
+  /** Wörter, vor denen gewarnt wird – kommt aus dem Markenwissen. */
+  warnWoerter?: string[];
 }) {
-  const clips = broll.filter((clip) => item.brollIds.includes(clip.id));
+  const aktiveIds = brollIds ?? item.brollIds;
+  const clips = aktiveIds
+    .map((id) => broll.find((clip) => clip.id === id))
+    .filter((clip): clip is BrollClip => Boolean(clip));
   const bearbeitbar = typeof onChange === "function";
+  const brollAenderbar = typeof onBrollChange === "function";
+  const freieClips = broll.filter((clip) => !aktiveIds.includes(clip.id));
+  const warnungen = gefundeneWarnwoerter(item, warnWoerter);
 
   function aendern(teil: Partial<ContentItem>) {
     onChange?.({ ...item, ...teil, updatedAt: new Date().toISOString() });
@@ -97,8 +125,34 @@ export function ReelKarte({
             <Tag>{VISIBILITY_LABELS[item.visibility]}</Tag>
           </div>
         </div>
-        <StatusBadge status={item.status} />
+        {onStatusChange ? (
+          <select
+            value={item.status}
+            onChange={(event) =>
+              onStatusChange(event.target.value as ContentStatus)
+            }
+            aria-label="Status ändern"
+            className="shrink-0 rounded-lg border-0 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 ring-1 ring-inset ring-slate-300 outline-none focus:ring-2 focus:ring-marke-600"
+          >
+            {STATUS_REIHENFOLGE.map((status) => (
+              <option key={status} value={status}>
+                {STATUS_LABELS[status]}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <StatusBadge status={item.status} />
+        )}
       </div>
+
+      {warnungen.length > 0 && (
+        <p className="border-b border-amber-200 bg-amber-50 px-5 py-2.5 text-xs text-amber-900">
+          <span className="font-semibold">Vorsicht bei der Formulierung: </span>
+          {warnungen.map((wort) => `„${wort}“`).join(", ")} steht auf der
+          Verbotsliste im Markenwissen. Solche Aussagen können als
+          Heilversprechen gelesen werden.
+        </p>
+      )}
 
       {bearbeitbar && (
         <p className="border-b border-slate-100 bg-marke-50/50 px-5 py-2.5 text-xs text-marke-900">
@@ -125,9 +179,32 @@ export function ReelKarte({
           )}
         </Abschnitt>
 
-        <Abschnitt titel="B-Roll-Empfehlung">
+        <Abschnitt
+          titel="B-Roll"
+          hinweis={
+            brollAenderbar && freieClips.length > 0 ? (
+              <select
+                value=""
+                onChange={(event) => {
+                  if (event.target.value) {
+                    onBrollChange?.([...aktiveIds, event.target.value]);
+                  }
+                }}
+                aria-label="Clip hinzufügen"
+                className="rounded-lg border-0 bg-white px-2 py-1 text-xs text-slate-700 ring-1 ring-inset ring-slate-300 outline-none focus:ring-2 focus:ring-marke-600"
+              >
+                <option value="">Clip hinzufügen …</option>
+                {freieClips.map((clip) => (
+                  <option key={clip.id} value={clip.id}>
+                    {clip.code} · {clip.titel}
+                  </option>
+                ))}
+              </select>
+            ) : undefined
+          }
+        >
           <div className="space-y-2">
-            {clips.length > 0 && (
+            {clips.length > 0 ? (
               <div className="flex flex-wrap gap-2">
                 {clips.map((clip) => (
                   <span
@@ -140,9 +217,30 @@ export function ReelKarte({
                       aria-hidden
                     />
                     {clip.code} · {clip.titel}
+                    {clip.besitzer === "kunde" && (
+                      <span className="text-marke-700">eigener Clip</span>
+                    )}
+                    {brollAenderbar && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          onBrollChange?.(
+                            aktiveIds.filter((id) => id !== clip.id),
+                          )
+                        }
+                        className="-mr-1 rounded px-1 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600"
+                        aria-label={`${clip.code} entfernen`}
+                      >
+                        ✕
+                      </button>
+                    )}
                   </span>
                 ))}
               </div>
+            ) : (
+              <p className="text-sm text-slate-500">
+                Noch kein Clip zugeordnet.
+              </p>
             )}
             {bearbeitbar ? (
               <AutoTextarea

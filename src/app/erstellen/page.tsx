@@ -23,6 +23,7 @@ import {
   GOAL_LABELS,
   GOAL_REIHENFOLGE,
 } from "@/lib/labels";
+import { contentAlsText } from "@/lib/export";
 import { useStore } from "@/lib/store";
 import type { Audience, ContentGoal, ContentItem } from "@/lib/types";
 
@@ -41,6 +42,19 @@ export default function ErstellenSeite() {
   const [meldung, setMeldung] = useState<string | null>(null);
   /** true, sobald der Entwurf seit dem letzten Speichern verändert wurde. */
   const [ungespeichert, setUngespeichert] = useState(false);
+  const [kopiert, setKopiert] = useState(false);
+
+  async function kopieren() {
+    if (!entwurf) return;
+    const clips = broll.filter((clip) => entwurf.brollIds.includes(clip.id));
+    try {
+      await navigator.clipboard.writeText(contentAlsText(entwurf, clips));
+      setKopiert(true);
+      window.setTimeout(() => setKopiert(false), 2000);
+    } catch {
+      setKopiert(false);
+    }
+  }
 
   const eingabe: GeneratorEingabe = {
     brandId: markeId,
@@ -250,6 +264,13 @@ export default function ErstellenSeite() {
               item={entwurf}
               broll={broll}
               onChange={entwurfAendern}
+              warnWoerter={wissen?.woerterVermeiden ?? []}
+              onBrollChange={(brollIds) =>
+                entwurfAendern({ ...entwurf, brollIds })
+              }
+              onStatusChange={(status) =>
+                entwurfAendern({ ...entwurf, status })
+              }
               aktionen={
                 <>
                   <Button
@@ -263,6 +284,9 @@ export default function ErstellenSeite() {
                     Freigeben
                   </Button>
                   <span className="mx-1 hidden h-6 w-px bg-slate-200 sm:block" />
+                  <Button variante="dezent" onClick={kopieren}>
+                    {kopiert ? "Kopiert" : "Alles kopieren"}
+                  </Button>
                   <Button variante="dezent" onClick={hookAendern}>
                     Anderer Hook
                   </Button>

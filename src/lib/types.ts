@@ -115,9 +115,24 @@ export interface ContentItem {
 /* B-Roll                                                              */
 /* ------------------------------------------------------------------ */
 
+/**
+ * Wem gehört ein Clip?
+ *
+ * "marke"  – gehört SQT, alle sehen ihn (heutiger Bestand)
+ * "kunde"  – gehört einer einzelnen Kundin, nur sie sieht ihn
+ *
+ * Diese Unterscheidung steht bewusst schon jetzt im Modell, obwohl es noch
+ * keine echten Kundenkonten gibt: Sie später nachzurüsten hieße, jeden
+ * bestehenden Clip anfassen zu müssen.
+ */
+export type BrollBesitzer = "marke" | "kunde";
+
 export interface BrollClip {
   id: string;
   brandId: BrandId;
+  besitzer: BrollBesitzer;
+  /** Nur gesetzt, wenn besitzer === "kunde". Später FK auf auth.users */
+  besitzerUserId?: string;
   /** Sprechende Kennung wie B001 */
   code: string;
   titel: string;
@@ -131,6 +146,21 @@ export interface BrollClip {
   vorschauFarbe: string;
   dauerSekunden: number;
   createdAt: string;
+}
+
+/**
+ * Persönliche B-Roll-Zuordnung einer Kundin zu einem Inhalt.
+ *
+ * Der Inhalt selbst gehört der Marke und wird von allen Kundinnen geteilt.
+ * Welche Clips eine Kundin dafür verwendet, ist ihre eigene Entscheidung –
+ * deshalb liegt diese Zuordnung getrennt und überschreibt nichts am Inhalt.
+ */
+export interface BrollZuordnung {
+  id: string;
+  userId: string;
+  contentId: string;
+  brollIds: string[];
+  updatedAt: string;
 }
 
 /* ------------------------------------------------------------------ */
