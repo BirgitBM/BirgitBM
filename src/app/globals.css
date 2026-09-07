@@ -1,0 +1,42 @@
+@import "tailwindcss";
+
+:root {
+  --ivory: #f7f3ee;
+  --blush: #e8d5c4;
+  --taupe: #8c7b6b;
+  --gold: #b8985a;
+  --charcoal: #2c2c2c;
+  --white: #ffffff;
+  --line: #e2dcd3;
+  --green: #4a7c59;
+  --green-bg: #e8f0e9;
+  --amber: #a8762c;
+  --amber-bg: #f5ead9;
+  --red: #a8433a;
+  --red-bg: #f5e3e1;
+}
+
+@theme inline {
+  --color-ivory: var(--ivory);
+  --color-blush: var(--blush);
+  --color-taupe: var(--taupe);
+  --color-gold: var(--gold);
+  --color-charcoal: var(--charcoal);
+  --color-line: var(--line);
+}
+
+body {
+  background: var(--ivory);
+  color: var(--charcoal);
+  font-family: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+h1, h2, h3, .font-display {
+  font-family: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+  letter-spacing: -0.01em;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--taupe) transparent;
+}
