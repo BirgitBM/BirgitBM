@@ -62,6 +62,11 @@ export interface ReelCard {
 //   "kunde" – gehört einer einzelnen Kundin, nur sie sieht ihn
 export type BRollBesitzer = "marke" | "kunde";
 
+// Woher kommt die Videodatei?
+//   "link"   – liegt bei Google Drive, Dropbox o. ä., wir merken uns die Adresse
+//   "upload" – liegt in Supabase Storage (noch nicht gebaut)
+export type VideoQuelle = "link" | "upload";
+
 export interface BRollClip {
   id: string;
   titel: string;
@@ -73,6 +78,12 @@ export interface BRollClip {
   besitzerUserId?: string;
   dauerSekunden: number;
   vorschauFarbe: string;
+  videoQuelle: VideoQuelle;
+  // Adresse der Videodatei bei einem externen Dienst.
+  videoUrl?: string;
+  // Pfad im Storage-Bucket – vorbereitet, noch ungenutzt.
+  videoPfad?: string;
+  dateigroesseBytes?: number;
 }
 
 // Persönliche Clip-Auswahl einer Kundin zu einem geteilten Reel.

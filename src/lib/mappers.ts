@@ -71,6 +71,10 @@ export function dbToBroll(row: Record<string, unknown>): BRollClip {
     besitzerUserId: (row.besitzer_user_id as string) ?? undefined,
     dauerSekunden: (row.dauer_sekunden as number) ?? 8,
     vorschauFarbe: (row.vorschau_farbe as string) ?? "#eee7dd",
+    videoQuelle: (row.video_quelle as BRollClip["videoQuelle"]) ?? "link",
+    videoUrl: (row.video_url as string) ?? undefined,
+    videoPfad: (row.video_pfad as string) ?? undefined,
+    dateigroesseBytes: (row.dateigroesse_bytes as number) ?? undefined,
   };
 }
 
@@ -86,6 +90,10 @@ export function brollToDb(clip: BRollClip) {
     besitzer_user_id: clip.besitzerUserId ?? null,
     dauer_sekunden: clip.dauerSekunden,
     vorschau_farbe: clip.vorschauFarbe,
+    video_quelle: clip.videoQuelle,
+    video_url: clip.videoUrl ?? null,
+    video_pfad: clip.videoPfad ?? null,
+    dateigroesse_bytes: clip.dateigroesseBytes ?? null,
   };
 }
 

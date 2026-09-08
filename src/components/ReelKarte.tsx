@@ -4,6 +4,7 @@ import { ReactNode } from "react";
 import { AutoInput, AutoTextarea, Card, StatusPill } from "@/components/ui";
 import { gefundeneWarnwoerter } from "@/lib/reelText";
 import { BRollClip, ContentStatus, ReelCard, TextOverlay } from "@/lib/types";
+import { sichererVideoLink } from "@/lib/videoLink";
 
 const statusOptionen: ContentStatus[] = [
   "Idee",
@@ -177,6 +178,16 @@ export function ReelKarte({
                       aria-hidden
                     />
                     {clip.id} · {clip.titel}
+                    {sichererVideoLink(clip.videoUrl) && (
+                      <a
+                        href={sichererVideoLink(clip.videoUrl)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="underline underline-offset-2 hover:text-charcoal"
+                      >
+                        Video
+                      </a>
+                    )}
                     {clip.besitzer === "kunde" && (
                       <span className="text-[var(--amber)]">eigener Clip</span>
                     )}

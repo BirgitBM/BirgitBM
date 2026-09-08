@@ -1,4 +1,5 @@
 import { BRollClip, ReelCard } from "./types";
+import { sichererVideoLink } from "./videoLink";
 
 // Setzt ein Reel als einfachen Text zusammen – zum Kopieren und Weitergeben
 // an die Person, die das Reel dreht und schneidet.
@@ -17,7 +18,12 @@ export function reelAlsText(reel: ReelCard, clips: BRollClip[]): string {
   zeilen.push("");
   zeilen.push("B-ROLL");
   if (clips.length > 0) {
-    clips.forEach((clip) => zeilen.push(`${clip.id} – ${clip.titel}`));
+    clips.forEach((clip) => {
+      const link = sichererVideoLink(clip.videoUrl);
+      // Die Adresse gehört mit in den Text: Wer das Reel schneidet, kommt so
+      // direkt an die Datei, ohne im Dashboard suchen zu müssen.
+      zeilen.push(link ? `${clip.id} – ${clip.titel}\n   ${link}` : `${clip.id} – ${clip.titel}`);
+    });
   } else {
     zeilen.push("Noch kein Clip zugeordnet");
   }

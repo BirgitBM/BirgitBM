@@ -114,6 +114,37 @@ Zum Ausprobieren: links unten in der Navigation die Rolle auf „Studio-Kunde"
 stellen, Clips tauschen, zurück auf „Admin" wechseln – das Original bleibt
 unverändert.
 
+## 3d. Video zu einem B-Roll-Clip (Migration 003)
+
+Ebenfalls einmalig im SQL Editor ausführen:
+
+```
+supabase/migration_003_video.sql
+```
+
+Danach hat jeder Clip ein Feld **Video-Link**. Die Datei bleibt bei deinem
+Cloud-Dienst (Google Drive, Dropbox, WeTransfer, Vimeo …), im Dashboard steht
+nur die Adresse. Ist ein Link hinterlegt, erscheint auf der Clip-Vorschau
+„Video öffnen", in der Reel-Karte ein kleiner Link neben dem Clip, und
+„Alles kopieren" nimmt die Adresse mit auf — so kommt die Person, die das
+Reel schneidet, direkt an die Datei.
+
+**Wichtig:** Der Link muss für die Personen freigegeben sein, die ihn öffnen
+sollen. Die Rechte liegen bei deinem Cloud-Dienst, nicht bei ContentOS.
+
+Erlaubt sind nur Adressen mit `http://` oder `https://`. Geprüft wird an zwei
+Stellen: im Formular und über eine Regel in der Datenbank. Grund: Ein
+gespeicherter Link wird als anklickbare Adresse ausgegeben — ohne Prüfung
+liesse sich dort Schadcode hinterlegen.
+
+### Echtes Hochladen kommt später
+
+Die Spalten `video_pfad`, `dateigroesse_bytes` und `video_quelle` sind bereits
+angelegt, damit für den späteren Upload nach Supabase Storage **keine weitere
+Migration** nötig ist. Gebaut ist er noch nicht — vorher sollten die
+Speicher- und Datenverkehrskosten geklärt sein, denn das ist der erste Posten,
+der mit der Zahl der Abo-Kundinnen mitwächst.
+
 ## 3c. Was seit dem Update neu ist
 
 - **Alle Texte der Reel-Karte sind direkt bearbeitbar** – Thema, Hook,

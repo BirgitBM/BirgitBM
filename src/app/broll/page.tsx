@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useStore } from "@/lib/store";
 import { Card, PageHeader, Button, Field, inputClass, EmptyState, Hinweis } from "@/components/ui";
 import { BRollClip } from "@/lib/types";
+import { istSichererVideoLink, sichererVideoLink, videoDienst } from "@/lib/videoLink";
 
 const vorschauFarben = ["#f4e7d3", "#e3ece9", "#e6e8f2", "#eef2e6", "#f2e9ef", "#e7f0f4", "#f0ece3"];
 
@@ -57,13 +58,16 @@ export default function BRollPage() {
       besitzer: istKunde ? "kunde" : "marke",
       dauerSekunden: 8,
       vorschauFarbe: vorschauFarben[Math.floor(Math.random() * vorschauFarben.length)],
+      videoQuelle: "link",
     });
     setNeu(true);
     setMeldung(null);
   };
 
+  const linkUngueltig = Boolean(entwurf?.videoUrl && !istSichererVideoLink(entwurf.videoUrl));
+
   const speichern = async () => {
-    if (!entwurf?.titel.trim()) return;
+    if (!entwurf?.titel.trim() || linkUngueltig) return;
     await saveBroll(entwurf);
     setEntwurf(null);
     setMeldung(neu ? "Clip angelegt." : "Clip gespeichert.");
@@ -171,6 +175,30 @@ export default function BRollPage() {
                 }
               />
             </Field>
+            <div className="sm:col-span-2">
+              <Field label="Video-Link (optional)">
+                <input
+                  className={inputClass}
+                  value={entwurf.videoUrl ?? ""}
+                  onChange={(e) =>
+                    setEntwurf({ ...entwurf, videoUrl: e.target.value || undefined })
+                  }
+                  placeholder="https://drive.google.com/… oder Dropbox, WeTransfer, Vimeo …"
+                />
+              </Field>
+              <p className="text-xs text-taupe mt-1.5">
+                Die Datei bleibt bei deinem Cloud-Dienst, hier merken wir uns nur die
+                Adresse. Achte darauf, dass der Link für die Personen freigegeben ist,
+                die ihn öffnen sollen. Das Hochladen direkt ins Dashboard kommt später.
+              </p>
+              {entwurf.videoUrl && !istSichererVideoLink(entwurf.videoUrl) && (
+                <p className="text-xs text-[var(--red)] mt-1.5">
+                  Das ist keine gültige Web-Adresse. Sie muss mit http:// oder https://
+                  beginnen.
+                </p>
+              )}
+            </div>
+
             <Field label="Schlagworte (mit Komma trennen)">
               <input
                 className={inputClass}
@@ -186,7 +214,7 @@ export default function BRollPage() {
             </Field>
           </div>
           <div className="flex flex-wrap gap-3 mt-5">
-            <Button onClick={speichern} disabled={!entwurf.titel.trim()}>
+            <Button onClick={speichern} disabled={!entwurf.titel.trim() || linkUngueltig}>
               {neu ? "Clip anlegen" : "Änderungen speichern"}
             </Button>
             <Button variant="ghost" onClick={() => setEntwurf(null)}>Abbrechen</Button>
@@ -219,9 +247,23 @@ export default function BRollPage() {
                     Eigener Clip
                   </span>
                 )}
-                <svg viewBox="0 0 24 24" className="h-10 w-10 text-charcoal/25" fill="currentColor" aria-hidden>
-                  <path d="M8 5.5v13l11-6.5z" />
-                </svg>
+                {sichererVideoLink(clip.videoUrl) ? (
+                  <a
+                    href={sichererVideoLink(clip.videoUrl)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex flex-col items-center gap-1.5 rounded-md bg-white/85 px-3 py-2 text-xs font-medium text-charcoal hover:bg-white"
+                  >
+                    <svg viewBox="0 0 24 24" className="h-8 w-8" fill="currentColor" aria-hidden>
+                      <path d="M8 5.5v13l11-6.5z" />
+                    </svg>
+                    Video öffnen
+                  </a>
+                ) : (
+                  <svg viewBox="0 0 24 24" className="h-10 w-10 text-charcoal/25" fill="currentColor" aria-hidden>
+                    <path d="M8 5.5v13l11-6.5z" />
+                  </svg>
+                )}
               </div>
               <div className="p-4">
                 <div className="flex items-center justify-between mb-1">
@@ -230,6 +272,13 @@ export default function BRollPage() {
                 </div>
                 <p className="text-sm text-taupe mt-1">{clip.beschreibung}</p>
                 {clip.produkt && <div className="text-xs text-taupe mt-2">Produkt: {clip.produkt}</div>}
+                {sichererVideoLink(clip.videoUrl) ? (
+                  <div className="text-xs text-taupe mt-2">
+                    Video bei {videoDienst(clip.videoUrl)}
+                  </div>
+                ) : (
+                  <div className="text-xs text-taupe mt-2">Noch keine Videodatei hinterlegt</div>
+                )}
                 <div className="flex flex-wrap gap-1.5 mt-3">
                   {clip.tags.map((t) => (
                     <span key={t} className="text-xs bg-ivory border border-line rounded-full px-2 py-0.5 text-taupe">
