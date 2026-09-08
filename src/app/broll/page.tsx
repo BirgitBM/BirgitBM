@@ -5,6 +5,14 @@ import { useStore } from "@/lib/store";
 import { Card, PageHeader, Button, Field, inputClass, EmptyState, Hinweis } from "@/components/ui";
 import { BRollClip } from "@/lib/types";
 import { istSichererVideoLink, sichererVideoLink, videoDienst } from "@/lib/videoLink";
+import {
+  BUCKET_BROLL,
+  MAX_UPLOAD_BYTES,
+  brollHochladen,
+  dateiEntfernen,
+  groesseLesbar,
+  signierteAdresse,
+} from "@/lib/storage";
 
 const vorschauFarben = ["#f4e7d3", "#e3ece9", "#e6e8f2", "#eef2e6", "#f2e9ef", "#e7f0f4", "#f0ece3"];
 
@@ -16,6 +24,8 @@ export default function BRollPage() {
   const [neu, setNeu] = useState(false);
   const [meldung, setMeldung] = useState<string | null>(null);
   const [loeschAbfrage, setLoeschAbfrage] = useState<string | null>(null);
+  const [laedtHoch, setLaedtHoch] = useState(false);
+  const [uploadFehler, setUploadFehler] = useState<string | null>(null);
 
   const istKunde = rolle !== "admin";
   const produkte = markenwissen.flatMap((m) => m.produkte);
@@ -65,6 +75,43 @@ export default function BRollPage() {
   };
 
   const linkUngueltig = Boolean(entwurf?.videoUrl && !istSichererVideoLink(entwurf.videoUrl));
+
+  // Der Upload geht direkt vom Browser zu Supabase Storage – die Datei läuft
+  // nicht durch die Anwendung. Erst danach wird der Clip gespeichert.
+  const dateiHochladen = async (datei: File) => {
+    if (!entwurf) return;
+    setLaedtHoch(true);
+    setUploadFehler(null);
+    try {
+      const { pfad, groesse } = await brollHochladen(entwurf.id, datei);
+      // Alte Datei desselben Clips aufräumen.
+      if (entwurf.videoPfad && entwurf.videoPfad !== pfad) {
+        await dateiEntfernen(BUCKET_BROLL, entwurf.videoPfad);
+      }
+      const aktualisiert = {
+        ...entwurf,
+        videoPfad: pfad,
+        dateigroesseBytes: groesse,
+        videoQuelle: "upload" as const,
+      };
+      setEntwurf(aktualisiert);
+      if (!neu) await saveBroll(aktualisiert);
+      setMeldung(`Video hochgeladen (${groesseLesbar(groesse)}).`);
+    } catch (fehler) {
+      setUploadFehler(fehler instanceof Error ? fehler.message : String(fehler));
+    } finally {
+      setLaedtHoch(false);
+    }
+  };
+
+  const videoAnsehen = async (pfad: string) => {
+    try {
+      const adresse = await signierteAdresse(BUCKET_BROLL, pfad);
+      window.open(adresse, "_blank", "noopener,noreferrer");
+    } catch (fehler) {
+      setMeldung(fehler instanceof Error ? fehler.message : String(fehler));
+    }
+  };
 
   const speichern = async () => {
     if (!entwurf?.titel.trim() || linkUngueltig) return;
@@ -175,8 +222,66 @@ export default function BRollPage() {
                 }
               />
             </Field>
+            <div className="sm:col-span-2 rounded-md border border-line bg-ivory p-4">
+              <div className="text-sm font-medium mb-1.5">Videodatei</div>
+              {entwurf.videoPfad ? (
+                <div className="flex flex-wrap items-center gap-3">
+                  <span className="text-sm">
+                    Hochgeladen
+                    {entwurf.dateigroesseBytes
+                      ? ` · ${groesseLesbar(entwurf.dateigroesseBytes)}`
+                      : ""}
+                  </span>
+                  <Button
+                    variant="secondary"
+                    onClick={() => videoAnsehen(entwurf.videoPfad as string)}
+                  >
+                    Ansehen
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    onClick={async () => {
+                      await dateiEntfernen(BUCKET_BROLL, entwurf.videoPfad);
+                      const ohne = {
+                        ...entwurf,
+                        videoPfad: undefined,
+                        dateigroesseBytes: undefined,
+                      };
+                      setEntwurf(ohne);
+                      if (!neu) await saveBroll(ohne);
+                    }}
+                  >
+                    Entfernen
+                  </Button>
+                </div>
+              ) : (
+                <>
+                  <input
+                    type="file"
+                    accept="video/*"
+                    disabled={laedtHoch}
+                    aria-label="Videodatei auswählen"
+                    onChange={(e) => {
+                      const datei = e.target.files?.[0];
+                      if (datei) dateiHochladen(datei);
+                      e.target.value = "";
+                    }}
+                    className="block w-full text-sm file:mr-3 file:rounded-md file:border-0 file:bg-gold file:px-4 file:py-2 file:text-sm file:font-medium file:text-charcoal hover:file:brightness-95"
+                  />
+                  <p className="text-xs text-taupe mt-2">
+                    {laedtHoch
+                      ? "Wird hochgeladen …"
+                      : `MP4 oder MOV, bis ${groesseLesbar(MAX_UPLOAD_BYTES)}. Nur hochgeladene Dateien können gerendert werden.`}
+                  </p>
+                </>
+              )}
+              {uploadFehler && (
+                <p className="text-xs text-[var(--red)] mt-2">{uploadFehler}</p>
+              )}
+            </div>
+
             <div className="sm:col-span-2">
-              <Field label="Video-Link (optional)">
+              <Field label="Video-Link (optional, nur zum Nachschlagen)">
                 <input
                   className={inputClass}
                   value={entwurf.videoUrl ?? ""}
@@ -187,9 +292,9 @@ export default function BRollPage() {
                 />
               </Field>
               <p className="text-xs text-taupe mt-1.5">
-                Die Datei bleibt bei deinem Cloud-Dienst, hier merken wir uns nur die
-                Adresse. Achte darauf, dass der Link für die Personen freigegeben ist,
-                die ihn öffnen sollen. Das Hochladen direkt ins Dashboard kommt später.
+                Verweis auf eine Datei bei Google Drive, Dropbox oder Vimeo. Praktisch
+                zum Nachschlagen — <strong>zum Rendern reicht ein Link nicht</strong>,
+                dafür muss die Datei oben hochgeladen sein.
               </p>
               {entwurf.videoUrl && !istSichererVideoLink(entwurf.videoUrl) && (
                 <p className="text-xs text-[var(--red)] mt-1.5">
@@ -247,7 +352,18 @@ export default function BRollPage() {
                     Eigener Clip
                   </span>
                 )}
-                {sichererVideoLink(clip.videoUrl) ? (
+                {clip.videoPfad ? (
+                  <button
+                    type="button"
+                    onClick={() => videoAnsehen(clip.videoPfad as string)}
+                    className="flex flex-col items-center gap-1.5 rounded-md bg-white/85 px-3 py-2 text-xs font-medium text-charcoal hover:bg-white"
+                  >
+                    <svg viewBox="0 0 24 24" className="h-8 w-8" fill="currentColor" aria-hidden>
+                      <path d="M8 5.5v13l11-6.5z" />
+                    </svg>
+                    Video ansehen
+                  </button>
+                ) : sichererVideoLink(clip.videoUrl) ? (
                   <a
                     href={sichererVideoLink(clip.videoUrl)}
                     target="_blank"
@@ -272,9 +388,22 @@ export default function BRollPage() {
                 </div>
                 <p className="text-sm text-taupe mt-1">{clip.beschreibung}</p>
                 {clip.produkt && <div className="text-xs text-taupe mt-2">Produkt: {clip.produkt}</div>}
-                {sichererVideoLink(clip.videoUrl) ? (
+                {clip.videoPfad ? (
                   <div className="text-xs text-taupe mt-2">
-                    Video bei {videoDienst(clip.videoUrl)}
+                    Videodatei hochgeladen
+                    {clip.dateigroesseBytes ? ` · ${groesseLesbar(clip.dateigroesseBytes)}` : ""}
+                    {" · "}
+                    <button
+                      type="button"
+                      onClick={() => videoAnsehen(clip.videoPfad as string)}
+                      className="underline underline-offset-2 hover:text-charcoal"
+                    >
+                      ansehen
+                    </button>
+                  </div>
+                ) : sichererVideoLink(clip.videoUrl) ? (
+                  <div className="text-xs text-taupe mt-2">
+                    Nur Link bei {videoDienst(clip.videoUrl)} — nicht renderbar
                   </div>
                 ) : (
                   <div className="text-xs text-taupe mt-2">Noch keine Videodatei hinterlegt</div>
@@ -301,10 +430,13 @@ export default function BRollPage() {
                     <>
                       <Button
                         variant="secondary"
-                        onClick={() => {
-                          removeBroll(clip.id);
+                        onClick={async () => {
+                          // Datei mitlöschen, sonst bleibt sie unsichtbar liegen
+                          // und kostet weiter Speicherplatz.
+                          await dateiEntfernen(BUCKET_BROLL, clip.videoPfad);
+                          await removeBroll(clip.id);
                           setLoeschAbfrage(null);
-                          setMeldung("Clip gelöscht.");
+                          setMeldung("Clip und Videodatei gelöscht.");
                         }}
                       >
                         Ja, löschen

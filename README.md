@@ -145,6 +145,79 @@ Migration** nötig ist. Gebaut ist er noch nicht — vorher sollten die
 Speicher- und Datenverkehrskosten geklärt sein, denn das ist der erste Posten,
 der mit der Zahl der Abo-Kundinnen mitwächst.
 
+## 3e. Video erstellen (Migration 004 + zwei Buckets + FFmpeg)
+
+Aus einem Reel wird eine fertige MP4: 9:16, höchstens 30 Sekunden, Texte
+exakt in ihren Zeitfenstern, B-Roll-Clips hintereinander an den
+Textabschnitten ausgerichtet.
+
+**Gerendert wird auf deinem eigenen Rechner.** Vercel kann das nicht: Dort
+läuft kein FFmpeg und die Laufzeit einer Funktion ist begrenzt. Das Dashboard
+darf online liegen — zum Rendern startest du ContentOS lokal.
+
+### Einmalig einrichten
+
+**1. SQL-Migration** im Supabase-Dashboard unter „SQL Editor":
+
+```
+supabase/migration_004_render.sql
+```
+
+Läuft bereits `schema_auth.sql`, zusätzlich `migration_004_render_auth.sql`.
+
+**2. Zwei Buckets** im Supabase-Dashboard unter „Storage" → „New bucket",
+beide **privat** (Schalter „Public bucket" ausgeschaltet lassen):
+
+| Name | Inhalt |
+| --- | --- |
+| `broll-videos` | die hochgeladenen Rohclips |
+| `reels-fertig` | die gerenderten MP4-Dateien |
+
+Privat heisst: Die Dateien sind nur über zeitlich begrenzte Adressen
+erreichbar, die ContentOS bei Bedarf erzeugt.
+
+**3. FFmpeg installieren** — ohne geht das Rendern nicht:
+
+| System | Befehl |
+| --- | --- |
+| macOS | `brew install ffmpeg` |
+| Windows | `winget install Gyan.FFmpeg` |
+| Linux | `sudo apt install ffmpeg` |
+
+Prüfen mit `ffmpeg -version`. Danach ContentOS neu starten.
+
+### So renderst du dein erstes Reel
+
+```bash
+npm run dev
+```
+
+1. **B-Roll-Bibliothek** → Clip anlegen oder bearbeiten → im Kasten
+   „Videodatei" eine MP4 oder MOV auswählen (bis 200 MB). Das für jeden Clip
+   wiederholen, den du verwenden willst.
+2. **Content-Bibliothek** → Reel anklicken → prüfen, dass unter „B-Roll"
+   mindestens ein Clip zugeordnet ist und dass die Textoverlays Zeitfenster
+   haben (z. B. „0:00–0:04").
+3. **„Video erstellen"** klicken. Für 20 Sekunden dauert das etwa 5 bis 15
+   Sekunden.
+4. Die **Vorschau** erscheint direkt darunter. Danach **„MP4 herunterladen"**.
+
+### Wichtig
+
+- **Cloud-Links reichen nicht.** Google Drive, Dropbox und Vimeo liefern dem
+  Server keine Videodatei, sondern eine Webseite. Gerendert wird nur mit
+  hochgeladenen Dateien. Das Linkfeld bleibt als Notiz erhalten.
+- **Höchstens 30 Sekunden.** Overlays, die darüber hinausgehen, werden
+  gekürzt; solche, die komplett dahinter liegen, übersprungen — beides wird
+  nach dem Rendern gemeldet.
+- **Die Länge kommt aus den Zeitfenstern**, nicht aus der Länge der Clips.
+  Ein zu kurzer Clip wird wiederholt statt schwarz zu werden.
+- **Kein geheimer Schlüssel im Browser.** Das Rendern läuft in einer
+  Server-Route. Optional kannst du in `.env.local` einen
+  `SUPABASE_SERVICE_ROLE_KEY` hinterlegen; der Name beginnt bewusst nicht mit
+  `NEXT_PUBLIC_`, damit Next.js ihn nicht ausliefert. Nötig ist er erst,
+  sobald ein Login aktiv ist.
+
 ## 3c. Was seit dem Update neu ist
 
 - **Alle Texte der Reel-Karte sind direkt bearbeitbar** – Thema, Hook,

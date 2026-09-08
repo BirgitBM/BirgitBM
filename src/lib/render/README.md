@@ -5,16 +5,14 @@ Erzeugt aus B-Roll-Clips und Textoverlays ein fertiges Instagram-Reel
 
 ## Stand
 
-Der Kern ist gebaut und geprüft. **Noch nicht angebunden sind:**
+Vollständig angebunden: Upload in der B-Roll-Bibliothek, Server-Route
+`/api/render`, Knöpfe „Video erstellen" und „MP4 herunterladen" in der
+Content-Bibliothek. Die Einrichtung steht im Haupt-README unter „3e".
 
-- die API-Route, die ihn aufruft
-- die Knöpfe „Video erstellen" und „MP4 herunterladen" im Dashboard
-- die Quelle der Videodateien
-
-Der letzte Punkt ist die offene Entscheidung: Zum Rendern muss der Server die
-Videodateien öffnen können. Cloud-Links (Google Drive, Dropbox, Vimeo) geben
-in aller Regel keine direkt ladbare Datei zurück, sondern eine Webseite.
-Zuverlässig wird es erst mit echten Dateien in Supabase Storage.
+Gerendert wird nur mit **hochgeladenen** Dateien aus dem Bucket
+`broll-videos`. Cloud-Links geben dem Server keine ladbare Datei zurück,
+sondern eine Webseite — sie sind zum Rendern ungeeignet und werden mit einer
+klaren Meldung abgelehnt statt still zu scheitern.
 
 ## Dateien
 
@@ -57,5 +55,10 @@ ffmpeg -f lavfi -i "smptebars=size=640x480:rate=25:duration=3" -pix_fmt yuv420p 
 | Overlay 40–50 s | übersprungen, mit Begründung im Ergebnis |
 | Zeitangabe „kaputt" | übersprungen, mit Begründung im Ergebnis |
 | Umlaute und Sonderzeichen | korrekt dargestellt (Text kommt aus einer Datei, keine Maskierung nötig) |
+| 4 Abschnitte auf 3 Clips | jeder Clip kommt vor, lückenlos (0–11 / 11–16 / 16–20 s) |
+| 2 Abschnitte auf 5 Clips | gleichmässig nach Zeit geteilt, kein Clip fällt weg |
+| FFmpeg fehlt | Route antwortet mit Installationshinweis je Betriebssystem |
+| Supabase nicht eingerichtet | Route nennt die fehlenden Umgebungsvariablen |
+| Clip ohne hochgeladene Datei | Route lehnt ab und erklärt, warum ein Link nicht reicht |
 
 Renderdauer für 15 Sekunden: rund 4 bis 5 Sekunden auf einem einfachen Rechner.

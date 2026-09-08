@@ -6,6 +6,7 @@ import { ReelKarte } from "@/components/ReelKarte";
 import { Card, PageHeader, StatusPill, EmptyState, Button, Hinweis, inputClass } from "@/components/ui";
 import { reelAlsText } from "@/lib/reelText";
 import { ContentArt, ContentStatus, Marke, ReelCard, Zielgruppe } from "@/lib/types";
+import { BUCKET_REELS, signierteAdresse } from "@/lib/storage";
 
 const marken: Marke[] = ["SQT B2B", "SQT Homecare", "Exoprime", "Haut Zentrum"];
 const zielgruppen: Zielgruppe[] = ["Kosmetikerinnen", "Endkunden"];
@@ -34,6 +35,10 @@ export default function BibliothekPage() {
   const [auswahlId, setAuswahlId] = useState<string | null>(null);
   const [kopiert, setKopiert] = useState(false);
   const [loeschAbfrage, setLoeschAbfrage] = useState(false);
+  const [rendert, setRendert] = useState(false);
+  const [renderMeldung, setRenderMeldung] = useState<string | null>(null);
+  const [renderFehler, setRenderFehler] = useState<{ text: string; hinweis?: string } | null>(null);
+  const [vorschauUrl, setVorschauUrl] = useState<string | null>(null);
 
   const istAdmin = rolle === "admin";
 
@@ -80,6 +85,76 @@ export default function BibliothekPage() {
   const auswaehlen = (id: string) => {
     setAuswahlId(id === auswahlId ? null : id);
     setLoeschAbfrage(false);
+    setRenderMeldung(null);
+    setRenderFehler(null);
+    setVorschauUrl(null);
+  };
+
+  /**
+   * Startet das Rendern auf dem Server (Node-Prozess mit FFmpeg).
+   * Der Browser bekommt nur das Ergebnis – keine Schlüssel, keine Dateien.
+   */
+  const videoErstellen = async (reel: ReelCard) => {
+    setRendert(true);
+    setRenderMeldung(null);
+    setRenderFehler(null);
+    setVorschauUrl(null);
+    try {
+      const antwort = await fetch("/api/render", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reelId: reel.id }),
+      });
+      const ergebnis = await antwort.json();
+      if (!antwort.ok) {
+        setRenderFehler({ text: ergebnis.fehler ?? "Unbekannter Fehler", hinweis: ergebnis.hinweis });
+        return;
+      }
+      // Bildschirm und Datenbank gleichziehen – die Route hat bereits
+      // geschrieben, der Store kennt die neuen Werte aber noch nicht.
+      await updateReel(reel.id, {
+        videoPfad: ergebnis.pfad,
+        videoDauerSekunden: ergebnis.dauer,
+        renderStatus: "fertig",
+        renderFehler: undefined,
+        gerendertAm: new Date().toISOString(),
+      });
+      setVorschauUrl(await signierteAdresse(BUCKET_REELS, ergebnis.pfad));
+      const uebersprungen: string[] = ergebnis.uebersprungeneOverlays ?? [];
+      setRenderMeldung(
+        `Video erstellt: ${ergebnis.dauer} Sekunden aus ${ergebnis.verwendeteClips} Clip(s).` +
+          (uebersprungen.length
+            ? ` Übersprungen: ${uebersprungen.join("; ")}`
+            : ""),
+      );
+    } catch (fehler) {
+      setRenderFehler({
+        text: fehler instanceof Error ? fehler.message : String(fehler),
+        hinweis: "Läuft ContentOS gerade lokal? Das Rendern braucht den lokalen Server.",
+      });
+    } finally {
+      setRendert(false);
+    }
+  };
+
+  const vorschauLaden = async (reel: ReelCard) => {
+    if (!reel.videoPfad) return;
+    try {
+      setVorschauUrl(await signierteAdresse(BUCKET_REELS, reel.videoPfad));
+    } catch (fehler) {
+      setRenderFehler({ text: fehler instanceof Error ? fehler.message : String(fehler) });
+    }
+  };
+
+  const mp4Herunterladen = async (reel: ReelCard) => {
+    if (!reel.videoPfad) return;
+    try {
+      const dateiname = `${reel.id}-${reel.thema.slice(0, 40).replace(/[^\w\s-]/g, "").trim().replace(/\s+/g, "-")}.mp4`;
+      const adresse = await signierteAdresse(BUCKET_REELS, reel.videoPfad, dateiname);
+      window.location.href = adresse;
+    } catch (fehler) {
+      setRenderFehler({ text: fehler instanceof Error ? fehler.message : String(fehler) });
+    }
   };
 
   const kopieren = async (reel: ReelCard) => {
@@ -166,6 +241,33 @@ export default function BibliothekPage() {
               {auswahlId === r.id && ausgewaehlt && (
                 <div className="mt-3 space-y-3">
                   {kopiert && <Hinweis>Der vollständige Text liegt in der Zwischenablage.</Hinweis>}
+                  {renderMeldung && <Hinweis>{renderMeldung}</Hinweis>}
+                  {renderFehler && (
+                    <Hinweis ton="warnung">
+                      <span className="font-medium">Rendern fehlgeschlagen: </span>
+                      {renderFehler.text}
+                      {renderFehler.hinweis && (
+                        <span className="block mt-1.5">{renderFehler.hinweis}</span>
+                      )}
+                    </Hinweis>
+                  )}
+                  {vorschauUrl && (
+                    <Card>
+                      <div className="font-medium text-taupe text-sm mb-3">
+                        Vorschau
+                        {ausgewaehlt.videoDauerSekunden
+                          ? ` · ${ausgewaehlt.videoDauerSekunden} Sekunden`
+                          : ""}
+                      </div>
+                      <video
+                        src={vorschauUrl}
+                        controls
+                        playsInline
+                        className="mx-auto rounded-md bg-charcoal"
+                        style={{ aspectRatio: "9 / 16", maxHeight: "70vh" }}
+                      />
+                    </Card>
+                  )}
                   <ReelKarte
                     reel={ausgewaehlt}
                     broll={broll}
@@ -190,6 +292,21 @@ export default function BibliothekPage() {
                         <Button variant="secondary" onClick={() => kopieren(ausgewaehlt)}>
                           {kopiert ? "Kopiert" : "Alles kopieren"}
                         </Button>
+                        {istAdmin && (
+                          <Button onClick={() => videoErstellen(ausgewaehlt)} disabled={rendert}>
+                            {rendert ? "Video wird erstellt …" : "Video erstellen"}
+                          </Button>
+                        )}
+                        {ausgewaehlt.videoPfad && (
+                          <Button variant="secondary" onClick={() => mp4Herunterladen(ausgewaehlt)}>
+                            MP4 herunterladen
+                          </Button>
+                        )}
+                        {ausgewaehlt.videoPfad && !vorschauUrl && (
+                          <Button variant="secondary" onClick={() => vorschauLaden(ausgewaehlt)}>
+                            Vorschau anzeigen
+                          </Button>
+                        )}
                         {istAdmin && (
                           <Button
                             variant="secondary"

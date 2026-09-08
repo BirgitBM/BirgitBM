@@ -104,28 +104,16 @@ export function clipsVerteilen(
   if (clipAnzahl <= 0 || gesamtdauer <= 0) return [];
   if (clipAnzahl === 1) return [{ clipIndex: 0, start: 0, dauer: gesamtdauer }];
 
-  // Schnittpunkte: Anfang jedes Textabschnitts, plus 0 und Ende.
-  const punkte = Array.from(
-    new Set([0, ...segmente.map((s) => s.start), gesamtdauer]),
-  )
+  // Schnittpunkte: Anfang jedes Textabschnitts, dazu 0 und das Ende.
+  const punkte = Array.from(new Set([0, ...segmente.map((s) => s.start), gesamtdauer]))
     .filter((p) => p >= 0 && p <= gesamtdauer)
     .sort((a, b) => a - b);
 
-  // Auf so viele Abschnitte reduzieren, wie es Clips gibt.
-  const abschnitte: Array<{ start: number; dauer: number }> = [];
-  // Aufrunden statt abrunden: sonst bekommt der erste Clip nur einen einzigen
-  // kurzen Abschnitt und der letzte den ganzen Rest.
-  const proClip = Math.max(1, Math.ceil((punkte.length - 1) / clipAnzahl));
-  for (let i = 0; i < clipAnzahl; i++) {
-    const startIndex = i * proClip;
-    const endIndex = i === clipAnzahl - 1 ? punkte.length - 1 : (i + 1) * proClip;
-    const start = punkte[Math.min(startIndex, punkte.length - 1)];
-    const ende = punkte[Math.min(endIndex, punkte.length - 1)];
-    if (ende > start) abschnitte.push({ start, dauer: ende - start });
-  }
+  const abschnitte = punkte.length - 1; // Zahl der Zeitabschnitte
 
-  // Falls die Aufteilung nicht aufgeht: gleichmäßig verteilen.
-  if (abschnitte.length === 0) {
+  // Weniger Abschnitte als Clips: gleichmässig nach Zeit teilen. Sonst
+  // bekämen die übrigen Clips gar keine Zeit und würden verschwinden.
+  if (abschnitte < clipAnzahl) {
     const dauer = gesamtdauer / clipAnzahl;
     return Array.from({ length: clipAnzahl }, (_, i) => ({
       clipIndex: i,
@@ -134,7 +122,21 @@ export function clipsVerteilen(
     }));
   }
 
-  return abschnitte.map((a, i) => ({ clipIndex: i, start: a.start, dauer: a.dauer }));
+  // Abschnitte so auf die Clips verteilen, dass sich die Anzahl je Clip um
+  // höchstens eins unterscheidet. Jeder Clip kommt garantiert vor.
+  const grundzahl = Math.floor(abschnitte / clipAnzahl);
+  const rest = abschnitte % clipAnzahl;
+
+  const verteilung: Array<{ clipIndex: number; start: number; dauer: number }> = [];
+  let index = 0;
+  for (let i = 0; i < clipAnzahl; i++) {
+    const anzahl = grundzahl + (i < rest ? 1 : 0);
+    const start = punkte[index];
+    const ende = punkte[index + anzahl];
+    index += anzahl;
+    verteilung.push({ clipIndex: i, start, dauer: ende - start });
+  }
+  return verteilung;
 }
 
 /**

@@ -68,6 +68,7 @@ function generiereReel(input: {
     contentArt: "Reel",
     erstelltAm: jetzt.slice(0, 10),
     geaendertAm: jetzt,
+    renderStatus: "offen",
     freigegebenFuerKunden: false,
   };
 }

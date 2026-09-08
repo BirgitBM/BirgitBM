@@ -31,6 +31,11 @@ export function dbToReel(row: Record<string, unknown>): ReelCard {
     contentArt: row.content_art as ReelCard["contentArt"],
     erstelltAm: row.erstellt_am as string,
     geaendertAm: (row.geaendert_am as string) ?? (row.erstellt_am as string),
+    videoPfad: (row.video_pfad as string) ?? undefined,
+    videoDauerSekunden: (row.video_dauer_sekunden as number) ?? undefined,
+    renderStatus: (row.render_status as ReelCard["renderStatus"]) ?? "offen",
+    renderFehler: (row.render_fehler as string) ?? undefined,
+    gerendertAm: (row.gerendert_am as string) ?? undefined,
     freigegebenFuerKunden: Boolean(row.freigegeben_fuer_kunden),
   };
 }
@@ -53,6 +58,11 @@ export function reelToDb(reel: ReelCard) {
     content_art: reel.contentArt,
     erstellt_am: reel.erstelltAm,
     geaendert_am: reel.geaendertAm,
+    video_pfad: reel.videoPfad ?? null,
+    video_dauer_sekunden: reel.videoDauerSekunden ?? null,
+    render_status: reel.renderStatus,
+    render_fehler: reel.renderFehler ?? null,
+    gerendert_am: reel.gerendertAm ?? null,
     freigegeben_fuer_kunden: reel.freigegebenFuerKunden,
   };
 }

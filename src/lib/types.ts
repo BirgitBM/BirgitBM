@@ -34,6 +34,8 @@ export interface TextOverlay {
   text: string;
 }
 
+export type RenderStatus = "offen" | "laeuft" | "fertig" | "fehler";
+
 export interface ReelCard {
   id: string;
   marke: Marke;
@@ -53,6 +55,12 @@ export interface ReelCard {
   contentArt: ContentArt;
   erstelltAm: string; // ISO-Datum
   geaendertAm: string; // ISO-Zeitstempel
+  // Fertiges Video: Pfad im Storage-Bucket "reels-fertig".
+  videoPfad?: string;
+  videoDauerSekunden?: number;
+  renderStatus: RenderStatus;
+  renderFehler?: string;
+  gerendertAm?: string;
   // Steuert, ob ein Inhalt später für Kunden-Logins sichtbar wäre.
   freigegebenFuerKunden: boolean;
 }
